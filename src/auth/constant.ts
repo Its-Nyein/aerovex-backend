@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import type { StringValue } from 'ms';
 
 const configService = new ConfigService();
 
@@ -14,11 +15,11 @@ export const jwtConstants = {
   accessTokenExpiresIn: configService.get<string>(
     'JWT_ACCESS_TOKEN_EXPIRES_IN',
     '5m',
-  ),
+  ) as StringValue,
   refreshTokenExpiresIn: configService.get<string>(
     'JWT_REFRESH_TOKEN_EXPIRES_IN',
     '15d',
-  ),
+  ) as StringValue,
 };
 
 export const cookieConstants = {
