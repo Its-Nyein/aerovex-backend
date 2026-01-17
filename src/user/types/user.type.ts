@@ -1,4 +1,4 @@
-import { Permission, Role, User as UserModel } from 'generated/prisma';
+import { Permission, Role, User as UserModel } from '@prisma/client';
 
 export type User = UserModel;
 
