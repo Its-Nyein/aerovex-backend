@@ -1,20 +1,22 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule } from '@nestjs/config';
-import { UserModule } from './user/user.module';
-import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { BillingModule } from './billing/billing.module';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
-import { RoleModule } from './role/role.module';
-import { RedisModule } from './redis/redis.module';
-import { UploadModule } from './upload/upload.module';
-import { ExternalServiceModule } from './external-service/external-service.module';
-import { QueuesModule } from './queues/queues.module';
-import { ScheduleModule } from '@nestjs/schedule';
 import { CronService } from './cron/cron.service';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { ExternalServiceModule } from './external-service/external-service.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { QueuesModule } from './queues/queues.module';
+import { RedisModule } from './redis/redis.module';
+import { RoleModule } from './role/role.module';
+import { UploadModule } from './upload/upload.module';
+import { UserModule } from './user/user.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { APP_GUARD } from '@nestjs/core';
     UploadModule,
     ExternalServiceModule,
     QueuesModule,
+    BillingModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [

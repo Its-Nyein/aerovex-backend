@@ -7,18 +7,20 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(uuid()) @db.Uuid()
-  name          String        @db.VarChar(255)
-  email         String        @unique @db.VarChar(255)
-  password      String        @db.VarChar(255)
-  accountStatus AccountStatus @map("account_status")
-  isActive      Boolean       @default(true) @map("is_active")
-  isVerified    Boolean       @default(false) @map("is_verified")
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
-  deletedAt     DateTime?     @map("deleted_at") @db.Timestamp(6)
-  roleId        String        @map("role_id") @db.Uuid()
-  role          Role          @relation(fields: [roleId], references: [id])
+  id               String        @id @default(uuid()) @db.Uuid()
+  name             String        @db.VarChar(255)
+  email            String        @unique @db.VarChar(255)
+  password         String        @db.VarChar(255)
+  accountStatus    AccountStatus @map("account_status")
+  isActive         Boolean       @default(true) @map("is_active")
+  isVerified       Boolean       @default(false) @map("is_verified")
+  stripeCustomerId String?       @unique @map("stripe_customer_id") @db.VarChar(255)
+  payments         Payment[]
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt        DateTime?     @map("deleted_at") @db.Timestamp(6)
+  roleId           String        @map("role_id") @db.Uuid()
+  role             Role          @relation(fields: [roleId], references: [id])
 
   @@index([name, email])
   @@map("users")
@@ -31,27 +33,49 @@ enum AccountStatus {
 }
 
 model Role {
-  id         String       @id @default(uuid()) @db.Uuid()
-  name       String       @db.VarChar(255)
-  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamp(6)
-  deletedAt  DateTime?    @map("deleted_at") @db.Timestamp(6)
-  users      User[]
+  id          String       @id @default(uuid()) @db.Uuid()
+  name        String       @db.VarChar(255)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamp(6)
+  users       User[]
   permissions Permission[]
 
   @@map("roles")
 }
 
 model Permission {
-  id        String   @id @default(uuid()) @db.Uuid()
-  action    String   @db.VarChar(200)
-  subject   String   @db.VarChar(200)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  id        String    @id @default(uuid()) @db.Uuid()
+  action    String    @db.VarChar(200)
+  subject   String    @db.VarChar(200)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
-  roleId    String   @map("role_id") @db.Uuid()
-  role      Role     @relation(fields: [roleId], references: [id])
+  roleId    String    @map("role_id") @db.Uuid()
+  role      Role      @relation(fields: [roleId], references: [id])
 
   @@unique([action, subject, roleId]) // Prevent duplicate permissions for a role
   @@map("permissions")
+}
+
+model Payment {
+  id                    String      @id @default(uuid()) @db.Uuid()
+  userId                String      @map("user_id") @db.Uuid()
+  stripePaymentIntentId String      @unique @map("stripe_payment_intent_id") @db.VarChar(255)
+  amount                Int
+  currency              String      @default("USD") @map("currency") @db.VarChar(3)
+  paymentType           PaymentType @default(ONE_TIME) @map("payment_type")
+  description           String?     @map("description") @db.VarChar(255)
+  user                  User        @relation(fields: [userId], references: [id])
+  createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt             DateTime?   @map("deleted_at") @db.Timestamp(6)
+
+  @@map("payments")
+}
+
+enum PaymentType {
+  ONE_TIME
+  RECURRING
+  USAGE_BASED
 }
