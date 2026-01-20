@@ -140,6 +140,23 @@ export class UserController {
     };
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get current user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current user fetched successfully',
+    type: UserResponseDto,
+  })
+  async getCurrentUser(@CurrentUser() user: JwtUser): Promise<UserResponseDto> {
+    const result = await this.userService.findUserByEmail(user.email);
+    return {
+      success: true,
+      message: 'Current user fetched successfully',
+      user: result,
+    };
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions({ action: 'view', subject: 'user' })
@@ -154,23 +171,6 @@ export class UserController {
     return {
       success: true,
       message: 'User fetched successfully',
-      user: result,
-    };
-  }
-
-  @Get('/me')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Get current user' })
-  @ApiResponse({
-    status: 200,
-    description: 'Current user fetched successfully',
-    type: UserResponseDto,
-  })
-  async getCurrentUser(@CurrentUser() user: JwtUser): Promise<UserResponseDto> {
-    const result = await this.userService.findUserByEmail(user.email);
-    return {
-      success: true,
-      message: 'Current user fetched successfully',
       user: result,
     };
   }
