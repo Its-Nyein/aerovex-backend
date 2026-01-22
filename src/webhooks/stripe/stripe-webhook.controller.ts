@@ -13,15 +13,17 @@ import { BillingService } from 'src/billing/billing.service';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
 import type Stripe from 'stripe';
 
-const VALID_PAYMENT_TYPES = [
-  'ONE_TIME',
-  'RECURRING',
-  'SUBSCRIPTION',
-  'USAGE_BASED',
-] as const;
+const VALID_PAYMENT_TYPES = ['ONE_TIME', 'RECURRING', 'USAGE_BASED'] as const;
 
 function isValidPaymentType(value: string): value is PaymentType {
   return (VALID_PAYMENT_TYPES as readonly string[]).includes(value);
+}
+
+interface InvoiceWithPayment {
+  subscription: string | { id: string };
+  customer: string | { id: string };
+  amount_paid: number;
+  currency: string;
 }
 
 @ApiTags('webhooks')
@@ -69,8 +71,12 @@ export class StripeWebhookController {
         this.handlePaymentIntentFailed(event.data.object);
         break;
 
+      case 'invoice.payment_succeeded':
+        await this.handleInvoicePaymentSucceeded(event.data.object);
+        break;
+
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`⚠️ Unhandled event type: ${event.type}`);
     }
 
     return { received: true };
@@ -111,6 +117,50 @@ export class StripeWebhookController {
     console.log(
       `Payment ${id} failed for user ${metadata.userId ?? 'unknown'}`,
     );
-    // You can add additional logic here (e.g., send email notification)
+  }
+
+  private async handleInvoicePaymentSucceeded(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
+    const invoiceData = invoice as unknown as InvoiceWithPayment;
+
+    if (!invoiceData.subscription || !invoiceData.customer) {
+      console.log('⚠️ No subscription or customer in invoice, skipping...');
+      return;
+    }
+
+    const subscriptionId =
+      typeof invoiceData.subscription === 'string'
+        ? invoiceData.subscription
+        : invoiceData.subscription.id;
+    const customerId =
+      typeof invoiceData.customer === 'string'
+        ? invoiceData.customer
+        : invoiceData.customer.id;
+
+    // Find user by Stripe customer ID
+    const user =
+      await this.billingService.findUserByStripeCustomerId(customerId);
+
+    if (!user) {
+      console.log(
+        `❌ No user found for Stripe customer ${customerId}, skipping...`,
+      );
+      return;
+    }
+
+    const subscriptionDetails = await this.stripeService
+      .getClient()
+      .subscriptions.retrieve(subscriptionId);
+    const priceId = subscriptionDetails.items.data[0]?.price.id;
+
+    await this.billingService.saveSubscriptionPayment(
+      user.id,
+      subscriptionId,
+      priceId || '',
+      invoiceData.amount_paid,
+      invoiceData.currency,
+      `Subscription payment for ${subscriptionId}`,
+    );
   }
 }

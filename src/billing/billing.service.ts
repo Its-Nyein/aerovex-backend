@@ -3,6 +3,7 @@ import type { Payment, PaymentType } from '@prisma/client';
 import { BillingRepository } from './billing.repository';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
 import { CreatePaymentIntentDto } from './dtos/create-payment-intent.dto';
+import type Stripe from 'stripe';
 
 interface PaymentIntentResponse {
   clientSecret: string | null;
@@ -14,6 +15,20 @@ interface PaymentIntentResponse {
 interface PaymentConfirmResponse {
   status: string;
   paymentIntentId: string;
+}
+
+interface SubscriptionResponse {
+  subscriptionId: string;
+  clientSecret: string | null;
+  status: string;
+}
+
+interface ExpandedInvoice {
+  payment_intent?:
+    | {
+        client_secret: string | null;
+      }
+    | string;
 }
 
 @Injectable()
@@ -120,5 +135,85 @@ export class BillingService {
     }
 
     return payment;
+  }
+
+  async createSubscription(
+    userId: string,
+    priceId: string,
+  ): Promise<SubscriptionResponse> {
+    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId);
+
+    const subscription = await this.stripeService.createSubscription(
+      stripeCustomerId,
+      priceId,
+    );
+
+    let clientSecret: string | null = null;
+
+    if (subscription.latest_invoice) {
+      const latestInvoice =
+        subscription.latest_invoice as unknown as ExpandedInvoice;
+      if (
+        latestInvoice.payment_intent &&
+        typeof latestInvoice.payment_intent === 'object'
+      ) {
+        clientSecret = latestInvoice.payment_intent.client_secret || null;
+      }
+    }
+
+    return {
+      subscriptionId: subscription.id,
+      clientSecret,
+      status: subscription.status,
+    };
+  }
+
+  async cancelSubscription(subscriptionId: string): Promise<void> {
+    await this.stripeService.cancelSubscription(subscriptionId);
+  }
+
+  async getUserSubscriptions(userId: string): Promise<Stripe.Subscription[]> {
+    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId);
+    const subscriptions =
+      await this.stripeService.listCustomerSubscriptions(stripeCustomerId);
+    return subscriptions.data;
+  }
+
+  async listPrices(): Promise<Stripe.Price[]> {
+    const prices = await this.stripeService.listPrices();
+    return prices.data;
+  }
+
+  async saveSubscriptionPayment(
+    userId: string,
+    subscriptionId: string,
+    priceId: string,
+    amount: number,
+    currency: string,
+    description?: string,
+  ): Promise<Payment> {
+    return this.billingRepository.createPayment({
+      userId,
+      stripeSubscriptionId: subscriptionId,
+      stripePriceId: priceId,
+      amount,
+      currency,
+      paymentType: 'RECURRING',
+      description,
+    });
+  }
+
+  async findUserByStripeCustomerId(stripeCustomerId: string) {
+    return this.billingRepository.findUserByStripeCustomerId(stripeCustomerId);
+  }
+
+  async createSetupIntent(userId: string): Promise<{ clientSecret: string }> {
+    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId);
+    const setupIntent =
+      await this.stripeService.createSetupIntent(stripeCustomerId);
+
+    return {
+      clientSecret: setupIntent.client_secret || '',
+    };
   }
 }

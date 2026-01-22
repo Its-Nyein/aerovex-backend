@@ -68,4 +68,59 @@ export class StripeService {
       webhookSecret,
     );
   }
+
+  async createSubscription(
+    customerId: string,
+    priceId: string,
+  ): Promise<Stripe.Subscription> {
+    const paymentMethods = await this.stripe.paymentMethods.list({
+      customer: customerId,
+      type: 'card',
+      limit: 1,
+    });
+
+    const defaultPaymentMethod = paymentMethods.data[0]?.id;
+
+    if (!defaultPaymentMethod) {
+      throw new Error('No payment method found for customer');
+    }
+
+    return this.stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+      default_payment_method: defaultPaymentMethod,
+      payment_behavior: 'allow_incomplete',
+      payment_settings: { save_default_payment_method: 'on_subscription' },
+      expand: ['latest_invoice.payment_intent'],
+    });
+  }
+
+  async cancelSubscription(
+    subscriptionId: string,
+  ): Promise<Stripe.Subscription> {
+    return this.stripe.subscriptions.cancel(subscriptionId);
+  }
+
+  async listCustomerSubscriptions(
+    customerId: string,
+  ): Promise<Stripe.ApiList<Stripe.Subscription>> {
+    return this.stripe.subscriptions.list({
+      customer: customerId,
+    });
+  }
+
+  async listPrices(): Promise<Stripe.ApiList<Stripe.Price>> {
+    return this.stripe.prices.list({
+      active: true,
+      expand: ['data.product'],
+    });
+  }
+
+  async createSetupIntent(customerId: string): Promise<Stripe.SetupIntent> {
+    return this.stripe.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ['card'],
+      usage: 'off_session',
+    });
+  }
 }
