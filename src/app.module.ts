@@ -28,7 +28,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
       throttlers: [
         {
           ttl: 60000,
-          limit: 10,
+          // 20 requests per minute for testing purposes
+          limit: 20,
         },
       ],
     }),

@@ -73,6 +73,7 @@ export class StripeService {
     customerId: string,
     priceId: string,
   ): Promise<Stripe.Subscription> {
+    // Get customer's payment method
     const paymentMethods = await this.stripe.paymentMethods.list({
       customer: customerId,
       type: 'card',
@@ -85,13 +86,16 @@ export class StripeService {
       throw new Error('No payment method found for customer');
     }
 
+    await this.stripe.customers.update(customerId, {
+      invoice_settings: {
+        default_payment_method: defaultPaymentMethod,
+      },
+    });
+
     return this.stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
-      default_payment_method: defaultPaymentMethod,
-      payment_behavior: 'allow_incomplete',
-      payment_settings: { save_default_payment_method: 'on_subscription' },
-      expand: ['latest_invoice.payment_intent'],
+      off_session: true,
     });
   }
 
