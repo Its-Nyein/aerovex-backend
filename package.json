@@ -1,9 +1,9 @@
 {
   "name": "aerovex-backend",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
+  "version": "1.1.0",
+  "description": "This repository contains an implementation of Role-Based Access Control (RBAC) using NestJS, a progressive Node.js framework, and PostgreSQL.",
+  "author": "Aerovex",
+  "private": false,
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
