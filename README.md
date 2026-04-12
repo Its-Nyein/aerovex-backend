@@ -1,98 +1,355 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Aerovex Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A robust NestJS backend application featuring Role-Based Access Control (RBAC), authentication, payment processing, and file management capabilities.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Authentication & Authorization**: JWT-based authentication with role-based access control (RBAC)
+- **User Management**: Complete user lifecycle management with role assignments
+- **Payment Integration**: Stripe integration for one-time and recurring payments
+- **File Management**: AWS S3 integration for secure file uploads and storage
+- **Email Service**: Email notifications with customizable templates using Handlebars
+- **Job Queues**: Background job processing with BullMQ and Redis
+- **Security**: Helmet, CSRF protection, rate limiting, and account lockout mechanisms
+- **API Documentation**: Swagger/OpenAPI documentation
+- **Webhooks**: Stripe webhook handling for payment events
+- **Database**: PostgreSQL with Prisma ORM
+- **Caching**: Redis for performance optimization
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tech Stack
 
-## Project setup
+- **Framework**: [NestJS](https://nestjs.com/) v11
+- **Language**: TypeScript
+- **Database**: PostgreSQL
+- **ORM**: Prisma
+- **Cache/Queue**: Redis, BullMQ
+- **Authentication**: JWT (Passport)
+- **File Storage**: AWS S3
+- **Payment**: Stripe
+- **Email**: Nodemailer with Handlebars templates
+- **Validation**: class-validator, class-transformer
+- **Testing**: Jest
+- **Code Quality**: ESLint, Prettier, Husky
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- Node.js (v18 or higher)
+- Yarn package manager
+- PostgreSQL (v14 or higher)
+- Redis (v6 or higher)
+- AWS account (for S3 storage)
+- Stripe account (for payment processing)
+
+## Getting Started
+
+### 1. Clone the repository
 
 ```bash
-$ yarn install
+git clone <repository-url>
+cd aerovex-backend
 ```
 
-## Compile and run the project
+### 2. Install dependencies
 
 ```bash
-# development
-$ yarn run start
-
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+yarn install
 ```
 
-## Run tests
+### 3. Environment Configuration
+
+Copy the example environment file and configure it with your credentials:
 
 ```bash
-# unit tests
-$ yarn run test
+cp .env.example .env
+```
 
-# e2e tests
-$ yarn run test:e2e
+Update the `.env` file with your configuration:
 
-# test coverage
-$ yarn run test:cov
+```env
+# Application
+PORT=3000
+APP_NAME=aerovex-backend
+NODE_ENV=development
+
+# Database
+DATABASE_URL="postgresql://postgres:password@localhost:5432/aerovex?schema=public"
+
+# Frontend URL (for CORS)
+AEROVEX_FRONTEND_URL="http://localhost:5173"
+
+# Super Admin Credentials
+SUPER_ADMIN_EMAIL=superadmin@example.com
+SUPER_ADMIN_PASSWORD=superadmin12!@
+SUPER_ADMIN_NAME=SuperAdmin
+
+# JWT Configuration
+JWT_ACCESS_SECRET_KEY=your-access-secret-key
+JWT_REFRESH_SECRET_KEY=your-refresh-secret-key
+JWT_ACCESS_TOKEN_EXPIRES_IN=5m
+JWT_REFRESH_TOKEN_EXPIRES_IN=15d
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# AWS S3
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_REGION=your-aws-region
+AWS_BUCKET_NAME=your-aws-bucket-name
+
+# Email Configuration
+MAIL_MAILER=smtp
+MAIL_HOST=sandbox.smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_SENDER=noreply@aerovex.com
+
+# Queue Configuration
+QUEUE_DEFAULT_ATTEMPTS=3
+QUEUE_REMOVE_ON_COMPLETE=true
+QUEUE_REMOVE_ON_FAIL=false
+QUEUE_BACKOFF_DELAY=5000
+
+# Security
+MAX_LOGIN_ATTEMPTS=5
+LOCK_DURATION_SECONDS=3600
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_your_secret_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+```
+
+### 4. Database Setup
+
+Generate Prisma client and run migrations:
+
+```bash
+# Generate Prisma Client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev
+
+# (Optional) Seed the database
+npx prisma db seed
+```
+
+### 5. Start Redis
+
+Make sure Redis is running on your machine:
+
+```bash
+# Using Homebrew (macOS)
+brew services start redis
+
+# Or run Redis directly
+redis-server
+```
+
+### 6. Run the Application
+
+```bash
+# Development mode with hot reload
+yarn start:dev
+
+# Production mode
+yarn build
+yarn start:prod
+
+# Debug mode
+yarn start:debug
+```
+
+The API will be available at `http://localhost:3000`
+
+## API Documentation
+
+Once the application is running, access the Swagger API documentation at:
+
+```
+http://localhost:3000/api/docs
+```
+
+## Available Scripts
+
+```bash
+# Development
+yarn start:dev          # Start in development mode with watch
+yarn start:debug        # Start in debug mode
+
+# Build
+yarn build              # Build the application
+
+# Production
+yarn start:prod         # Start in production mode
+
+# Code Quality
+yarn lint               # Run ESLint
+yarn format             # Format code with Prettier
+
+# Testing
+yarn test               # Run unit tests
+yarn test:watch         # Run tests in watch mode
+yarn test:cov           # Run tests with coverage
+yarn test:e2e           # Run end-to-end tests
+```
+
+## Project Structure
+
+```
+aerovex-backend/
+├── prisma/                 # Prisma schema and migrations
+├── src/
+│   ├── auth/              # Authentication module
+│   ├── billing/           # Payment and billing module
+│   ├── common/            # Shared utilities and decorators
+│   ├── cron/              # Scheduled tasks
+│   ├── external-service/  # Third-party service integrations
+│   ├── prisma/            # Prisma service
+│   ├── queues/            # BullMQ job queues
+│   ├── redis/             # Redis configuration
+│   ├── role/              # Role management
+│   ├── templates/         # Email templates
+│   ├── upload/            # File upload module
+│   ├── user/              # User management
+│   ├── webhooks/          # Webhook handlers
+│   ├── app.module.ts      # Root application module
+│   └── main.ts            # Application entry point
+├── test/                  # E2E tests
+├── .env.example           # Environment variables template
+└── package.json           # Project dependencies
+```
+
+## Security Features
+
+- **JWT Authentication**: Secure token-based authentication
+- **CSRF Protection**: Cross-Site Request Forgery protection
+- **Rate Limiting**: Throttling to prevent abuse
+- **Helmet**: Security headers configuration
+- **Account Lockout**: Automatic account locking after failed login attempts
+- **Password Hashing**: bcrypt for secure password storage
+- **Input Validation**: class-validator for request validation
+
+## Database Schema
+
+To view the database schema:
+
+```bash
+npx prisma studio
+```
+
+This will open Prisma Studio at `http://localhost:5555`
+
+## Testing
+
+```bash
+# Run all tests
+yarn test
+
+# Run tests with coverage
+yarn test:cov
+
+# Run E2E tests
+yarn test:e2e
+
+# Run tests in watch mode
+yarn test:watch
 ```
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Build for production
 
 ```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+yarn build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Environment Variables
 
-## Resources
+Ensure all production environment variables are properly configured:
 
-Check out a few resources that may come in handy when working with NestJS:
+- Use strong, unique secrets for JWT keys
+- Configure production database
+- Set up production Redis instance
+- Configure AWS S3 for production
+- Update Stripe keys to live mode
+- Configure production email service
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Running in Production
 
-## Support
+```bash
+# Using Node
+node dist/main.js
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Or using yarn
+yarn start:prod
+```
 
-## Stay in touch
+### Using Docker (if applicable)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+# Build Docker image
+docker build -t aerovex-backend .
+
+# Run container
+docker run -p 3000:3000 --env-file .env aerovex-backend
+```
+
+## Troubleshooting
+
+### Database Connection Issues
+
+- Ensure PostgreSQL is running
+- Verify DATABASE_URL in `.env` is correct
+- Check database credentials and permissions
+
+### Redis Connection Issues
+
+- Ensure Redis is running: `redis-cli ping` should return `PONG`
+- Verify REDIS_HOST and REDIS_PORT in `.env`
+
+### Email Not Sending
+
+- Verify SMTP credentials in `.env`
+- Check firewall settings for SMTP ports
+- For Gmail, ensure "Less secure app access" is enabled or use App Passwords
+
+### File Upload Issues
+
+- Verify AWS credentials are correct
+- Ensure S3 bucket exists and has proper permissions
+- Check CORS configuration on S3 bucket
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add some amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+### Code Style
+
+- Follow the existing code style
+- Run `yarn lint` before committing
+- Ensure all tests pass with `yarn test`
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED
+
+## Support
+
+For issues and questions, please open an issue in the repository.
+
+## Author
+
+Aerovex
+
+---
+
+Built with [NestJS](https://nestjs.com/)
