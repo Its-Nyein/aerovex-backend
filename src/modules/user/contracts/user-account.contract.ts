@@ -23,6 +23,17 @@ export interface UserBillingProfile {
   stripeCustomerId: string | null;
 }
 
+/**
+ * A permission granted to a user through their role.
+ *
+ * Deliberately a plain shape rather than auth's RequiredPermissions type: the
+ * user module owns the role and permission joins and must not depend on auth.
+ */
+export interface UserPermission {
+  action: string;
+  subject: string;
+}
+
 export interface UserAccountContract {
   /**
    * Look a user up by email.
@@ -51,4 +62,12 @@ export interface UserAccountContract {
 
   /** Attach a Stripe customer id to a user. */
   setStripeCustomerId(userId: string, stripeCustomerId: string): Promise<void>;
+
+  /**
+   * Permissions granted to a user through their role.
+   *
+   * Returns null when no such user exists, which callers treat differently
+   * from a user that exists with no permissions.
+   */
+  findPermissionsByUserId(userId: string): Promise<UserPermission[] | null>;
 }

@@ -41,21 +41,19 @@ describe('AuthModule', () => {
     expect(moduleRef.get(JwtStrategy)).toBeInstanceOf(JwtStrategy);
   });
 
-  it('exports AuthService and nothing else', () => {
-    expect(Reflect.getMetadata('exports', AuthModule)).toEqual([AuthService]);
+  it('exports nothing', () => {
+    // Auth's public surface is its guards and decorators, which consumers
+    // import directly. Nothing outside auth injects AuthService.
+    expect(Reflect.getMetadata('exports', AuthModule)).toBeUndefined();
   });
 
-  it('still couples PermissionsGuard to PrismaService', () => {
-    // Current state, not the target one. PermissionsGuard takes PrismaService
-    // as a constructor dependency, which is why every module with a guarded
-    // controller has to import PrismaModule. The follow-up commit replaces
-    // this with an auth-owned contract and this assertion changes with it.
+  it('no longer couples PermissionsGuard to PrismaService', () => {
     const dependencies = Reflect.getMetadata(
       'design:paramtypes',
       PermissionsGuard,
     ) as unknown[];
 
-    expect(dependencies).toContain(PrismaService);
+    expect(dependencies).not.toContain(PrismaService);
   });
 
   it('provides JwtAuthGuard without extra dependencies', () => {

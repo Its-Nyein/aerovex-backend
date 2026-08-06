@@ -23,7 +23,8 @@ import { ExternalServiceModule } from 'src/external-service/external-service.mod
     }),
   ],
   controllers: [AuthController],
+  // Nothing outside auth consumes AuthService. Auth's public surface is its
+  // guards and decorators, which are plain imports rather than providers.
   providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
 })
 export class AuthModule {}

@@ -1,11 +1,13 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { USER_ACCOUNT } from 'src/modules/user/contracts/user-account.contract';
+import type { UserAccountContract } from 'src/modules/user/contracts/user-account.contract';
 import {
   PERMISSION_METADATA_KEY,
   RequiredPermissions,
@@ -17,7 +19,12 @@ import { JwtUser } from '../decorators/current-user.decorator';
 export class PermissionsGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
-    private readonly prismaService: PrismaService,
+    // The user module owns the user, role and permission tables, so the guard
+    // reads them through its contract rather than through PrismaService. That
+    // is what lets modules with guarded controllers depend on UserModule
+    // instead of PrismaModule.
+    @Inject(USER_ACCOUNT)
+    private readonly userAccount: UserAccountContract,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -34,25 +41,11 @@ export class PermissionsGuard implements CanActivate {
     const user = httpRequest.user as JwtUser | undefined;
     if (!user) throw new UnauthorizedException('User not authenticated');
 
-    const dbUser = await this.prismaService.user.findUnique({
-      where: {
-        id: user.id,
-      },
-      include: {
-        role: {
-          include: {
-            permissions: true,
-          },
-        },
-      },
-    });
+    const userPermissions = await this.userAccount.findPermissionsByUserId(
+      user.id,
+    );
 
-    if (!dbUser) throw new UnauthorizedException('User not found');
-
-    const userPermissions = dbUser.role.permissions.map((permission) => ({
-      action: permission.action,
-      subject: permission.subject,
-    }));
+    if (!userPermissions) throw new UnauthorizedException('User not found');
 
     // check if user has at least one of the required permissions
     const hasPermission = requiredPermissions.some((permission) =>
