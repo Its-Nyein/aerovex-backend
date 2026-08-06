@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { type AccountStatus, accountStatus } from '../enums/enum';
 import { Exclude, Expose } from 'class-transformer';
-import { RoleDto } from 'src/modules/role/dtos/role.dto';
+import { RoleDto } from 'src/modules/role/contracts/role.contract';
 export class UserDto {
   @ApiProperty({
     format: 'uuid',
