@@ -1,25 +1,30 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import type { App } from 'supertest/types';
+import request from 'supertest';
+import { createTestApp } from './create-test-app';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  // Booting the real AppModule is the point of this suite: it resolves the
+  // whole dependency graph against a live Postgres and Redis, which the unit
+  // specs cannot do.
+  beforeAll(async () => {
+    ({ app } = await createTestApp());
   });
 
-  it('/ (GET)', () => {
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  it('serves the health check under the global prefix', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/v1/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect('Our aerovex backend is running');
+  });
+
+  it('does not serve routes without the prefix', () => {
+    return request(app.getHttpServer()).get('/health').expect(404);
   });
 });
