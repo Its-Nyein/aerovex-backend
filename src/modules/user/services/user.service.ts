@@ -7,6 +7,7 @@ import {
 import type {
   UserAccountContract,
   UserBillingProfile,
+  UserPermission,
 } from '../contracts/user-account.contract';
 import { UserRepository } from '../repositories/user.repository';
 import { UserDto } from '../dtos/user.dto';
@@ -229,6 +230,21 @@ export class UserService implements UserAccountContract {
     stripeCustomerId: string,
   ): Promise<void> {
     await this.userRepository.setStripeCustomerId(userId, stripeCustomerId);
+  }
+
+  async findPermissionsByUserId(
+    userId: string,
+  ): Promise<UserPermission[] | null> {
+    const user = await this.userRepository.findPermissionsByUserId(userId);
+
+    if (!user) {
+      return null;
+    }
+
+    return user.role.permissions.map((permission) => ({
+      action: permission.action,
+      subject: permission.subject,
+    }));
   }
 }
 

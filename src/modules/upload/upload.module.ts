@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { UserModule } from 'src/modules/user/user.module';
 import { UploadController } from './controllers/upload.controller';
 import { UploadService } from './services/upload.service';
 
 @Module({
-  // Upload owns no tables. PrismaModule is required only because the
-  // controller's PermissionsGuard injects PrismaService, so the guard is
-  // resolved from this module's injector. See the auth module refactor.
-  imports: [PrismaModule],
+  // Upload owns no tables, so it no longer imports PrismaModule. UserModule
+  // is here only to supply USER_ACCOUNT to the controller's PermissionsGuard.
+  imports: [UserModule],
   controllers: [UploadController],
   providers: [UploadService],
 })

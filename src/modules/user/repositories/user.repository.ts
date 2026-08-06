@@ -214,6 +214,22 @@ export class UserRepository {
     });
   }
 
+  // Backs the permission check performed by auth's PermissionsGuard. Like the
+  // billing accessors this skips the deletedAt filter, matching the query the
+  // guard previously ran against the user table itself.
+  async findPermissionsByUserId(userId: string) {
+    return this.prismaService.user.findUnique({
+      where: { id: userId },
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
+    });
+  }
+
   async findSoftDeletedUsersByIds(
     ids: string[],
   ): Promise<UserWithRoleAndPermission[]> {

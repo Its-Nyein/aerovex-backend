@@ -157,4 +157,54 @@ describe('UserModule', () => {
       });
     });
   });
+
+  describe('permission lookup', () => {
+    it('flattens role permissions for the auth guard', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        role: {
+          id: 'role-1',
+          permissions: [
+            { action: 'view', subject: 'user', id: 'p1', roleId: 'role-1' },
+            { action: 'create', subject: 'role', id: 'p2', roleId: 'role-1' },
+          ],
+        },
+      });
+
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+
+      await expect(account.findPermissionsByUserId('user-1')).resolves.toEqual([
+        { action: 'view', subject: 'user' },
+        { action: 'create', subject: 'role' },
+      ]);
+
+      // Matches the query the guard previously ran: role and permissions
+      // included, and no deletedAt filter.
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        include: { role: { include: { permissions: true } } },
+      });
+    });
+
+    it('returns null for a user that does not exist', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+      await expect(
+        account.findPermissionsByUserId('missing'),
+      ).resolves.toBeNull();
+    });
+
+    it('distinguishes a user with no permissions from a missing user', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        role: { id: 'role-1', permissions: [] },
+      });
+
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+      await expect(account.findPermissionsByUserId('user-1')).resolves.toEqual(
+        [],
+      );
+    });
+  });
 });
