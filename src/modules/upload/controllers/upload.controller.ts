@@ -9,7 +9,7 @@ import {
   Delete,
   BadRequestException,
 } from '@nestjs/common';
-import { UploadService } from './upload.service';
+import { UploadService } from '../services/upload.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
@@ -18,7 +18,7 @@ import {
   ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
-import { FileDto } from './dtos/file-dto';
+import { FileDto } from '../dtos/file.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
 import { Permissions } from 'src/auth/decorators/permissions.decorator';
