@@ -10,12 +10,12 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Permissions } from 'src/auth/decorators/permissions.decorator';
-import { RoleResponseDto } from './dtos/role-response.dto';
-import { RoleService } from './role.service';
-import { CreateRoleDto } from './dtos/create-role.dto';
+import { RoleResponseDto } from '../dtos/role-response.dto';
+import { RoleService } from '../services/role.service';
+import { CreateRoleDto } from '../dtos/create-role.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { UpdateRoleDto } from './dtos/update-role.dto';
+import { UpdateRoleDto } from '../dtos/update-role.dto';
 
 @ApiTags('Roles')
 @Controller('roles')
