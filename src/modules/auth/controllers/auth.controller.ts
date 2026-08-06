@@ -8,11 +8,11 @@ import {
 } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { AuthService } from './auth.service';
-import { LoginResponseDto } from './dtos/login-response.dto';
-import { LoginDto } from './dtos/login.dto';
-import { RefreshResponseDto } from './dtos/refresh-response.dto';
-import { LogoutResponseDto } from './dtos/logout-response.dto';
+import { AuthService } from '../services/auth.service';
+import { LoginResponseDto } from '../dtos/login-response.dto';
+import { LoginDto } from '../dtos/login.dto';
+import { RefreshResponseDto } from '../dtos/refresh-response.dto';
+import { LogoutResponseDto } from '../dtos/logout-response.dto';
 
 // Create a custom interface that extends Request with properly typed cookies
 interface RequestWithCookies extends Request {

@@ -19,9 +19,9 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { FileDto } from '../dtos/file.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { Permissions } from 'src/auth/decorators/permissions.decorator';
+import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from 'src/modules/auth/guards/permissions.guard';
+import { Permissions } from 'src/modules/auth/decorators/permissions.decorator';
 
 @Controller('upload')
 export class UploadController {
