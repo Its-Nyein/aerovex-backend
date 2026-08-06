@@ -13,7 +13,7 @@ import { ExternalServiceModule } from './external-service/external-service.modul
 import { PrismaModule } from './prisma/prisma.module';
 import { QueuesModule } from './queues/queues.module';
 import { RedisModule } from './redis/redis.module';
-import { RoleModule } from './role/role.module';
+import { RoleModule } from './modules/role/role.module';
 import { UploadModule } from './upload/upload.module';
 import { UserModule } from './user/user.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
