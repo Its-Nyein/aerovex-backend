@@ -17,10 +17,10 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   CurrentUser,
   type JwtUser,
-} from 'src/auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { Permissions } from 'src/auth/decorators/permissions.decorator';
+} from 'src/modules/auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from 'src/modules/auth/guards/permissions.guard';
+import { Permissions } from 'src/modules/auth/decorators/permissions.decorator';
 import { CreateUserDto } from '../dtos/create-user.dto';
 import { UpdateUserDto } from '../dtos/update-user.dto';
 import { BulkDeleteUserDto } from '../dtos/bulk-delete-user.dto';
