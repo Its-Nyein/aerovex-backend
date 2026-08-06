@@ -4,7 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserAccountContract } from '../contracts/user-account.contract';
+import type {
+  UserAccountContract,
+  UserBillingProfile,
+} from '../contracts/user-account.contract';
 import { UserRepository } from '../repositories/user.repository';
 import { UserDto } from '../dtos/user.dto';
 import { plainToInstance } from 'class-transformer';
@@ -203,4 +206,42 @@ export class UserService implements UserAccountContract {
     await this.userRepository.bulkRestoreUsers(payload.ids);
     return { success: true, message: 'Users bulk restored successfully' };
   }
+
+  async findBillingProfileById(
+    userId: string,
+  ): Promise<UserBillingProfile | null> {
+    const user = await this.userRepository.findBillingProfileById(userId);
+    return user && toBillingProfile(user);
+  }
+
+  async findBillingProfileByStripeCustomerId(
+    stripeCustomerId: string,
+  ): Promise<UserBillingProfile | null> {
+    const user =
+      await this.userRepository.findBillingProfileByStripeCustomerId(
+        stripeCustomerId,
+      );
+    return user && toBillingProfile(user);
+  }
+
+  async setStripeCustomerId(
+    userId: string,
+    stripeCustomerId: string,
+  ): Promise<void> {
+    await this.userRepository.setStripeCustomerId(userId, stripeCustomerId);
+  }
+}
+
+function toBillingProfile(user: {
+  id: string;
+  email: string;
+  name: string;
+  stripeCustomerId: string | null;
+}): UserBillingProfile {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    stripeCustomerId: user.stripeCustomerId,
+  };
 }

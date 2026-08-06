@@ -1,6 +1,7 @@
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
+import { USER_ACCOUNT } from 'src/modules/user/contracts/user-account.contract';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { BillingModule } from './billing.module';
 import {
@@ -16,7 +17,16 @@ describe('BillingModule', () => {
 
   const prismaMock = {
     payment: { create: jest.fn() },
-    user: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), update: jest.fn() },
+  };
+
+  const stripeMock = { createCustomer: jest.fn() };
+
+  const userAccountMock = {
+    findUserByEmail: jest.fn(),
+    findBillingProfileById: jest.fn(),
+    findBillingProfileByStripeCustomerId: jest.fn(),
+    setStripeCustomerId: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -28,7 +38,9 @@ describe('BillingModule', () => {
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
       .overrideProvider(StripeService)
-      .useValue({})
+      .useValue(stripeMock)
+      .overrideProvider(USER_ACCOUNT)
+      .useValue(userAccountMock)
       .compile();
   });
 
@@ -109,6 +121,63 @@ describe('BillingModule', () => {
         paymentType: 'RECURRING',
         description: undefined,
       },
+    });
+  });
+  describe('user data ownership', () => {
+    it('reads the stripe customer id through the user contract', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue({
+        id: 'user-1',
+        email: 'john.doe@example.com',
+        name: 'John Doe',
+        stripeCustomerId: 'cus_existing',
+      });
+
+      const service = moduleRef.get(BillingService);
+      await expect(service.getOrCreateStripeCustomer('user-1')).resolves.toBe(
+        'cus_existing',
+      );
+
+      expect(userAccountMock.findBillingProfileById).toHaveBeenCalledWith(
+        'user-1',
+      );
+      // Billing must not query the user table itself.
+      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+      expect(stripeMock.createCustomer).not.toHaveBeenCalled();
+    });
+
+    it('writes a new stripe customer id through the user contract', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue({
+        id: 'user-1',
+        email: 'john.doe@example.com',
+        name: 'John Doe',
+        stripeCustomerId: null,
+      });
+      stripeMock.createCustomer.mockResolvedValue({ id: 'cus_new' });
+
+      const service = moduleRef.get(BillingService);
+      await expect(service.getOrCreateStripeCustomer('user-1')).resolves.toBe(
+        'cus_new',
+      );
+
+      expect(stripeMock.createCustomer).toHaveBeenCalledWith(
+        'john.doe@example.com',
+        'John Doe',
+      );
+      expect(userAccountMock.setStripeCustomerId).toHaveBeenCalledWith(
+        'user-1',
+        'cus_new',
+      );
+      // The user table write goes through the contract, not Prisma.
+      expect(prismaMock.user.update).not.toHaveBeenCalled();
+    });
+
+    it('throws when the user contract knows no such user', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue(null);
+
+      const service = moduleRef.get(BillingService);
+      await expect(
+        service.getOrCreateStripeCustomer('missing'),
+      ).rejects.toThrow('User with id missing not found');
     });
   });
 });
