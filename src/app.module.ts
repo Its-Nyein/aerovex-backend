@@ -15,7 +15,7 @@ import { QueuesModule } from './queues/queues.module';
 import { RedisModule } from './redis/redis.module';
 import { RoleModule } from './modules/role/role.module';
 import { UploadModule } from './modules/upload/upload.module';
-import { UserModule } from './user/user.module';
+import { UserModule } from './modules/user/user.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
