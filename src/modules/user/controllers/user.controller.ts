@@ -9,10 +9,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { UserService } from './user.service';
-import { UserResponseDto, UsersResponseDto } from './dtos/user-response.dto';
-import { PaginatedUsersResponseDto } from './dtos/paginated-users-response.dto';
-import { PaginationQueryDto } from './dtos/pagination-query.dto';
+import { UserService } from '../services/user.service';
+import { UserResponseDto, UsersResponseDto } from '../dtos/user-response.dto';
+import { PaginatedUsersResponseDto } from '../dtos/paginated-users-response.dto';
+import { PaginationQueryDto } from '../dtos/pagination-query.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   CurrentUser,
@@ -21,10 +21,10 @@ import {
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
 import { Permissions } from 'src/auth/decorators/permissions.decorator';
-import { CreateUserDto } from './dtos/create-user.dto';
-import { UpdateUserDto } from './dtos/update-user.dto';
-import { BulkDeleteUserDto } from './dtos/bulk-delete-user.dto';
-import { BulkRestoreUserDto } from './dtos/bulk-restore-user.dto';
+import { CreateUserDto } from '../dtos/create-user.dto';
+import { UpdateUserDto } from '../dtos/update-user.dto';
+import { BulkDeleteUserDto } from '../dtos/bulk-delete-user.dto';
+import { BulkRestoreUserDto } from '../dtos/bulk-restore-user.dto';
 
 @ApiTags('users')
 @Controller('users')

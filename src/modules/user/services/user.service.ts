@@ -4,17 +4,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserRepository } from './user.repository';
-import { UserDto } from './dtos/user.dto';
+import { UserAccountContract } from '../contracts/user-account.contract';
+import { UserRepository } from '../repositories/user.repository';
+import { UserDto } from '../dtos/user.dto';
 import { plainToInstance } from 'class-transformer';
-import { CreateUserDto } from './dtos/create-user.dto';
+import { CreateUserDto } from '../dtos/create-user.dto';
 import * as bcrypt from 'bcrypt';
-import { UpdateUserDto } from './dtos/update-user.dto';
-import { BulkDeleteUserDto } from './dtos/bulk-delete-user.dto';
-import { BulkRestoreUserDto } from './dtos/bulk-restore-user.dto';
+import { UpdateUserDto } from '../dtos/update-user.dto';
+import { BulkDeleteUserDto } from '../dtos/bulk-delete-user.dto';
+import { BulkRestoreUserDto } from '../dtos/bulk-restore-user.dto';
 
 @Injectable()
-export class UserService {
+export class UserService implements UserAccountContract {
   constructor(private readonly userRepository: UserRepository) {}
 
   async createUser(payload: CreateUserDto): Promise<UserDto> {

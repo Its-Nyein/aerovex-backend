@@ -1,11 +1,13 @@
 import {
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { UserService } from 'src/user/user.service';
+import { USER_ACCOUNT } from 'src/modules/user/contracts/user-account.contract';
+import type { UserAccountContract } from 'src/modules/user/contracts/user-account.contract';
 import { LoginResponseDto } from './dtos/login-response.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -28,7 +30,8 @@ interface AccountLockInfo {
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly userService: UserService,
+    @Inject(USER_ACCOUNT)
+    private readonly userService: UserAccountContract,
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     // private readonly emailPohService: EmailPohService,
