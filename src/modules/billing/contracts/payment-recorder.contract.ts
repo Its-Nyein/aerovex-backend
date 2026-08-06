@@ -1,4 +1,5 @@
-import type { Payment, PaymentType, User } from '@prisma/client';
+import type { Payment, PaymentType } from '@prisma/client';
+import type { UserBillingProfile } from 'src/modules/user/contracts/user-account.contract';
 
 /**
  * Public contract of the billing module.
@@ -35,8 +36,10 @@ export interface PaymentRecorderContract {
   /**
    * Resolve the account behind a Stripe customer id.
    *
-   * This reads the user table, which the billing module does not own. See the
-   * ownership note in BillingRepository.
+   * Billing does not own the user table, so this is served through the user
+   * module's contract.
    */
-  findUserByStripeCustomerId(stripeCustomerId: string): Promise<User | null>;
+  findUserByStripeCustomerId(
+    stripeCustomerId: string,
+  ): Promise<UserBillingProfile | null>;
 }
