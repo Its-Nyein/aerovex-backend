@@ -12,10 +12,10 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { JwtUser } from 'src/auth/decorators/current-user.decorator';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { BillingService } from './billing.service';
-import { ConfirmPaymentDto } from './dtos/confirm-payment.dto';
-import { CreatePaymentIntentDto } from './dtos/create-payment-intent.dto';
-import { CreateSubscriptionDto } from './dtos/create-subscription.dto';
+import { BillingService } from '../services/billing.service';
+import { ConfirmPaymentDto } from '../dtos/confirm-payment.dto';
+import { CreatePaymentIntentDto } from '../dtos/create-payment-intent.dto';
+import { CreateSubscriptionDto } from '../dtos/create-subscription.dto';
 
 @ApiTags('billing')
 @Controller('billing')

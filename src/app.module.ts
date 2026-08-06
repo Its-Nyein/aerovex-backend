@@ -6,7 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { BillingModule } from './billing/billing.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { LoggerMiddleware } from './common/middlewares/logger.middleware';
 import { CronService } from './cron/cron.service';
 import { ExternalServiceModule } from './external-service/external-service.module';
