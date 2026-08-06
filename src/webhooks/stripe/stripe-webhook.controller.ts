@@ -3,13 +3,15 @@ import {
   BadRequestException,
   Controller,
   Headers,
+  Inject,
   Post,
   Req,
 } from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { PaymentType } from '@prisma/client';
 import type { Request } from 'express';
-import { BillingService } from 'src/billing/billing.service';
+import { PAYMENT_RECORDER } from 'src/modules/billing/contracts/payment-recorder.contract';
+import type { PaymentRecorderContract } from 'src/modules/billing/contracts/payment-recorder.contract';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
 import type Stripe from 'stripe';
 
@@ -31,7 +33,8 @@ interface InvoiceWithPayment {
 export class StripeWebhookController {
   constructor(
     private readonly stripeService: StripeService,
-    private readonly billingService: BillingService,
+    @Inject(PAYMENT_RECORDER)
+    private readonly billingService: PaymentRecorderContract,
   ) {}
 
   @Post()

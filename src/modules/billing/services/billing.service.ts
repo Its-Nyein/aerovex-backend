@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Payment, PaymentType } from '@prisma/client';
-import { BillingRepository } from './billing.repository';
+import type { PaymentRecorderContract } from '../contracts/payment-recorder.contract';
+import { BillingRepository } from '../repositories/billing.repository';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
-import { CreatePaymentIntentDto } from './dtos/create-payment-intent.dto';
+import { CreatePaymentIntentDto } from '../dtos/create-payment-intent.dto';
 import type Stripe from 'stripe';
 
 interface PaymentIntentResponse {
@@ -32,7 +33,7 @@ interface ExpandedInvoice {
 }
 
 @Injectable()
-export class BillingService {
+export class BillingService implements PaymentRecorderContract {
   constructor(
     private readonly billingRepository: BillingRepository,
     private readonly stripeService: StripeService,
