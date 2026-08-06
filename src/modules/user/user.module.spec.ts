@@ -15,6 +15,7 @@ describe('UserModule', () => {
   const prismaMock = {
     user: {
       findUnique: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -87,5 +88,73 @@ describe('UserModule', () => {
     // UserDto declares password with @Exclude(), so the key survives
     // plainToInstance but the hash is dropped.
     expect(result.password).toBeUndefined();
+  });
+  describe('billing profile access', () => {
+    const record = {
+      id: 'user-1',
+      email: 'john.doe@example.com',
+      name: 'John Doe',
+      password: 'hashed',
+      stripeCustomerId: 'cus_123',
+    };
+
+    it('exposes only the billing fields, never the password', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(record);
+
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+      const profile = await account.findBillingProfileById('user-1');
+
+      expect(profile).toEqual({
+        id: 'user-1',
+        email: 'john.doe@example.com',
+        name: 'John Doe',
+        stripeCustomerId: 'cus_123',
+      });
+    });
+
+    it('does not filter out soft-deleted users', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(record);
+
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+      await account.findBillingProfileById('user-1');
+
+      // Payment events can arrive after deactivation, so this lookup must
+      // match the query billing previously ran: no deletedAt filter.
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+      });
+    });
+
+    it('resolves a profile from a stripe customer id', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(record);
+
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+      const profile =
+        await account.findBillingProfileByStripeCustomerId('cus_123');
+
+      expect(profile?.id).toBe('user-1');
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { stripeCustomerId: 'cus_123' },
+      });
+    });
+
+    it('returns null when no user matches', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+      await expect(
+        account.findBillingProfileById('missing'),
+      ).resolves.toBeNull();
+    });
+
+    it('writes the stripe customer id', async () => {
+      const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
+      await account.setStripeCustomerId('user-1', 'cus_new');
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { stripeCustomerId: 'cus_new' },
+      });
+    });
   });
 });

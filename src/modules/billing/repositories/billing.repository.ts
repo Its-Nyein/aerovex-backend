@@ -57,32 +57,4 @@ export class BillingRepository {
       },
     });
   }
-
-  // Ownership note: billing owns the payment table. The three methods below
-  // read and write the user table, which the user module owns, so they breach
-  // the module boundary. They are left in place here to keep this commit a
-  // behaviour-preserving move; fixing them means either widening the user
-  // module's public contract or giving billing its own customer mapping table,
-  // which is a schema migration.
-  async findUserById(userId: string) {
-    return this.prismaService.user.findUnique({
-      where: { id: userId },
-    });
-  }
-
-  async updateUserStripeCustomerId(
-    userId: string,
-    stripeCustomerId: string,
-  ): Promise<void> {
-    await this.prismaService.user.update({
-      where: { id: userId },
-      data: { stripeCustomerId },
-    });
-  }
-
-  async findUserByStripeCustomerId(stripeCustomerId: string) {
-    return this.prismaService.user.findUnique({
-      where: { stripeCustomerId },
-    });
-  }
 }

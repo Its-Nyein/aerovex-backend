@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Payment, PaymentType } from '@prisma/client';
 import type { PaymentRecorderContract } from '../contracts/payment-recorder.contract';
+import { USER_ACCOUNT } from 'src/modules/user/contracts/user-account.contract';
+import type {
+  UserAccountContract,
+  UserBillingProfile,
+} from 'src/modules/user/contracts/user-account.contract';
 import { BillingRepository } from '../repositories/billing.repository';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
 import { CreatePaymentIntentDto } from '../dtos/create-payment-intent.dto';
@@ -37,10 +42,12 @@ export class BillingService implements PaymentRecorderContract {
   constructor(
     private readonly billingRepository: BillingRepository,
     private readonly stripeService: StripeService,
+    @Inject(USER_ACCOUNT)
+    private readonly userAccount: UserAccountContract,
   ) {}
 
   async getOrCreateStripeCustomer(userId: string): Promise<string> {
-    const user = await this.billingRepository.findUserById(userId);
+    const user = await this.userAccount.findBillingProfileById(userId);
 
     if (!user) {
       throw new NotFoundException(`User with id ${userId} not found`);
@@ -58,10 +65,7 @@ export class BillingService implements PaymentRecorderContract {
     );
 
     // Save Stripe customer ID to user
-    await this.billingRepository.updateUserStripeCustomerId(
-      userId,
-      stripeCustomer.id,
-    );
+    await this.userAccount.setStripeCustomerId(userId, stripeCustomer.id);
 
     return stripeCustomer.id;
   }
@@ -204,8 +208,12 @@ export class BillingService implements PaymentRecorderContract {
     });
   }
 
-  async findUserByStripeCustomerId(stripeCustomerId: string) {
-    return this.billingRepository.findUserByStripeCustomerId(stripeCustomerId);
+  async findUserByStripeCustomerId(
+    stripeCustomerId: string,
+  ): Promise<UserBillingProfile | null> {
+    return this.userAccount.findBillingProfileByStripeCustomerId(
+      stripeCustomerId,
+    );
   }
 
   async createSetupIntent(userId: string): Promise<{ clientSecret: string }> {

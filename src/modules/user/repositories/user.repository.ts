@@ -188,6 +188,32 @@ export class UserRepository {
     });
   }
 
+  // Billing-facing accessors. These intentionally do not apply the
+  // deletedAt filter or the role include used elsewhere in this repository,
+  // because they replace queries the billing module previously ran against
+  // the user table directly and must behave identically.
+  async findBillingProfileById(userId: string) {
+    return this.prismaService.user.findUnique({
+      where: { id: userId },
+    });
+  }
+
+  async findBillingProfileByStripeCustomerId(stripeCustomerId: string) {
+    return this.prismaService.user.findUnique({
+      where: { stripeCustomerId },
+    });
+  }
+
+  async setStripeCustomerId(
+    userId: string,
+    stripeCustomerId: string,
+  ): Promise<void> {
+    await this.prismaService.user.update({
+      where: { id: userId },
+      data: { stripeCustomerId },
+    });
+  }
+
   async findSoftDeletedUsersByIds(
     ids: string[],
   ): Promise<UserWithRoleAndPermission[]> {
