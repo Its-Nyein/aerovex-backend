@@ -36,7 +36,7 @@ A robust NestJS backend application featuring Role-Based Access Control (RBAC), 
 Before you begin, ensure you have the following installed:
 
 - Node.js (v18 or higher)
-- Yarn package manager
+- pnpm package manager
 - PostgreSQL (v14 or higher)
 - Redis (v6 or higher)
 - AWS account (for S3 storage)
@@ -54,7 +54,7 @@ cd aerovex-backend
 ### 2. Install dependencies
 
 ```bash
-yarn install
+pnpm install
 ```
 
 ### 3. Environment Configuration
@@ -154,14 +154,14 @@ redis-server
 
 ```bash
 # Development mode with hot reload
-yarn start:dev
+pnpm start:dev
 
 # Production mode
-yarn build
-yarn start:prod
+pnpm build
+pnpm start:prod
 
 # Debug mode
-yarn start:debug
+pnpm start:debug
 ```
 
 The API will be available at `http://localhost:3000`
@@ -178,24 +178,24 @@ http://localhost:3000/api/docs
 
 ```bash
 # Development
-yarn start:dev          # Start in development mode with watch
-yarn start:debug        # Start in debug mode
+pnpm start:dev          # Start in development mode with watch
+pnpm start:debug        # Start in debug mode
 
 # Build
-yarn build              # Build the application
+pnpm build              # Build the application
 
 # Production
-yarn start:prod         # Start in production mode
+pnpm start:prod         # Start in production mode
 
 # Code Quality
-yarn lint               # Run ESLint
-yarn format             # Format code with Prettier
+pnpm lint               # Run ESLint
+pnpm format             # Format code with Prettier
 
 # Testing
-yarn test               # Run unit tests
-yarn test:watch         # Run tests in watch mode
-yarn test:cov           # Run tests with coverage
-yarn test:e2e           # Run end-to-end tests
+pnpm test               # Run unit tests
+pnpm test:watch         # Run tests in watch mode
+pnpm test:cov           # Run tests with coverage
+pnpm test:e2e           # Run end-to-end tests
 ```
 
 ## Project Structure
@@ -248,16 +248,16 @@ This will open Prisma Studio at `http://localhost:5555`
 
 ```bash
 # Run all tests
-yarn test
+pnpm test
 
 # Run tests with coverage
-yarn test:cov
+pnpm test:cov
 
 # Run E2E tests
-yarn test:e2e
+pnpm test:e2e
 
 # Run tests in watch mode
-yarn test:watch
+pnpm test:watch
 ```
 
 ## Deployment
@@ -265,7 +265,7 @@ yarn test:watch
 ### Build for production
 
 ```bash
-yarn build
+pnpm build
 ```
 
 ### Environment Variables
@@ -283,10 +283,10 @@ Ensure all production environment variables are properly configured:
 
 ```bash
 # Using Node
-node dist/main.js
+node dist/src/main.js
 
-# Or using yarn
-yarn start:prod
+# Or using pnpm
+pnpm start:prod
 ```
 
 ### Using Docker (if applicable)
@@ -335,8 +335,8 @@ docker run -p 3000:3000 --env-file .env aerovex-backend
 ### Code Style
 
 - Follow the existing code style
-- Run `yarn lint` before committing
-- Ensure all tests pass with `yarn test`
+- Run `pnpm lint` before committing
+- Ensure all tests pass with `pnpm test`
 
 ## License
 
