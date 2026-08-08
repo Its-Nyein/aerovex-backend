@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
@@ -16,11 +17,17 @@ describe('BillingModule', () => {
   let moduleRef: TestingModule;
 
   const prismaMock = {
-    payment: { create: jest.fn() },
+    payment: { create: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn() },
     user: { findUnique: jest.fn(), update: jest.fn() },
   };
 
-  const stripeMock = { createCustomer: jest.fn() };
+  const stripeMock = {
+    createCustomer: jest.fn(),
+    retrievePaymentIntent: jest.fn(),
+    confirmPaymentIntent: jest.fn(),
+    cancelSubscription: jest.fn(),
+    getClient: jest.fn(),
+  };
 
   const userAccountMock = {
     findUserByEmail: jest.fn(),
@@ -178,6 +185,116 @@ describe('BillingModule', () => {
       await expect(
         service.getOrCreateStripeCustomer('missing'),
       ).rejects.toThrow('User with id missing not found');
+    });
+  });
+  describe('ownership scoping', () => {
+    const owner = {
+      id: 'user-1',
+      email: 'owner@example.com',
+      name: 'Owner',
+      stripeCustomerId: 'cus_owner',
+    };
+
+    it('scopes a payment lookup to the caller in the query', async () => {
+      prismaMock.payment.findFirst.mockResolvedValue({ id: 'pay-1' });
+
+      const service = moduleRef.get(BillingService);
+      await service.getPaymentById('pay-1', 'user-1');
+
+      // The userId must be part of the where clause, not checked afterwards.
+      expect(prismaMock.payment.findFirst).toHaveBeenCalledWith({
+        where: { id: 'pay-1', userId: 'user-1' },
+      });
+    });
+
+    it('hides a payment that belongs to somebody else', async () => {
+      // Scoped query returns nothing for a non-owner.
+      prismaMock.payment.findFirst.mockResolvedValue(null);
+
+      const service = moduleRef.get(BillingService);
+      await expect(
+        service.getPaymentById('someone-elses-payment', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('refuses to confirm a payment intent owned by another customer', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue(owner);
+      stripeMock.retrievePaymentIntent.mockResolvedValue({
+        id: 'pi_victim',
+        customer: 'cus_somebody_else',
+      });
+
+      const service = moduleRef.get(BillingService);
+      await expect(
+        service.confirmPayment('pi_victim', 'pm_1', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(stripeMock.confirmPaymentIntent).not.toHaveBeenCalled();
+    });
+
+    it('confirms a payment intent the caller owns', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue(owner);
+      stripeMock.retrievePaymentIntent.mockResolvedValue({
+        id: 'pi_mine',
+        customer: 'cus_owner',
+      });
+      stripeMock.confirmPaymentIntent.mockResolvedValue({
+        id: 'pi_mine',
+        status: 'succeeded',
+      });
+
+      const service = moduleRef.get(BillingService);
+      await expect(
+        service.confirmPayment('pi_mine', 'pm_1', 'user-1'),
+      ).resolves.toEqual({ status: 'succeeded', paymentIntentId: 'pi_mine' });
+    });
+
+    it('refuses to cancel a subscription owned by another customer', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue(owner);
+      stripeMock.getClient.mockReturnValue({
+        subscriptions: {
+          retrieve: jest
+            .fn()
+            .mockResolvedValue({ id: 'sub_victim', customer: 'cus_other' }),
+        },
+      });
+
+      const service = moduleRef.get(BillingService);
+      await expect(
+        service.cancelSubscription('sub_victim', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(stripeMock.cancelSubscription).not.toHaveBeenCalled();
+    });
+
+    it('cancels a subscription the caller owns', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue(owner);
+      stripeMock.getClient.mockReturnValue({
+        subscriptions: {
+          retrieve: jest
+            .fn()
+            .mockResolvedValue({ id: 'sub_mine', customer: 'cus_owner' }),
+        },
+      });
+
+      const service = moduleRef.get(BillingService);
+      await service.cancelSubscription('sub_mine', 'user-1');
+
+      expect(stripeMock.cancelSubscription).toHaveBeenCalledWith('sub_mine');
+    });
+
+    it('denies ownership checks for a user with no billing account', async () => {
+      userAccountMock.findBillingProfileById.mockResolvedValue({
+        ...owner,
+        stripeCustomerId: null,
+      });
+
+      const service = moduleRef.get(BillingService);
+      await expect(
+        service.confirmPayment('pi_x', 'pm_1', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+      // Verification must not create a customer as a side effect.
+      expect(stripeMock.createCustomer).not.toHaveBeenCalled();
     });
   });
 });

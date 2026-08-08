@@ -98,7 +98,18 @@ export class BillingService implements PaymentRecorderContract {
   async confirmPayment(
     paymentIntentId: string,
     paymentMethodId: string,
+    userId: string,
   ): Promise<PaymentConfirmResponse> {
+    const stripeCustomerId = await this.requireStripeCustomerId(userId);
+    const existing =
+      await this.stripeService.retrievePaymentIntent(paymentIntentId);
+
+    if (customerIdOf(existing.customer) !== stripeCustomerId) {
+      throw new NotFoundException(
+        `Payment intent with id ${paymentIntentId} not found`,
+      );
+    }
+
     const paymentIntent = await this.stripeService.confirmPaymentIntent(
       paymentIntentId,
       paymentMethodId,
@@ -132,9 +143,14 @@ export class BillingService implements PaymentRecorderContract {
     return this.billingRepository.findPaymentsByUserId(userId);
   }
 
-  async getPaymentById(paymentId: string): Promise<Payment> {
-    const payment = await this.billingRepository.findPaymentById(paymentId);
+  async getPaymentById(paymentId: string, userId: string): Promise<Payment> {
+    const payment = await this.billingRepository.findPaymentByIdForUser(
+      paymentId,
+      userId,
+    );
 
+    // Not found rather than forbidden on purpose: a distinct 403 would confirm
+    // that someone else's payment exists under this id.
     if (!payment) {
       throw new NotFoundException(`Payment with id ${paymentId} not found`);
     }
@@ -173,8 +189,39 @@ export class BillingService implements PaymentRecorderContract {
     };
   }
 
-  async cancelSubscription(subscriptionId: string): Promise<void> {
+  async cancelSubscription(
+    subscriptionId: string,
+    userId: string,
+  ): Promise<void> {
+    const stripeCustomerId = await this.requireStripeCustomerId(userId);
+    const subscription = await this.stripeService
+      .getClient()
+      .subscriptions.retrieve(subscriptionId);
+
+    if (customerIdOf(subscription.customer) !== stripeCustomerId) {
+      throw new NotFoundException(
+        `Subscription with id ${subscriptionId} not found`,
+      );
+    }
+
     await this.stripeService.cancelSubscription(subscriptionId);
+  }
+
+  /**
+   * The caller's Stripe customer id, for ownership checks.
+   *
+   * Unlike getOrCreateStripeCustomer this never creates one: a user with no
+   * customer id cannot own any intent or subscription, and a verification path
+   * should not have side effects.
+   */
+  private async requireStripeCustomerId(userId: string): Promise<string> {
+    const profile = await this.userAccount.findBillingProfileById(userId);
+
+    if (!profile?.stripeCustomerId) {
+      throw new NotFoundException('No billing account for this user');
+    }
+
+    return profile.stripeCustomerId;
   }
 
   async getUserSubscriptions(userId: string): Promise<Stripe.Subscription[]> {
@@ -225,4 +272,15 @@ export class BillingService implements PaymentRecorderContract {
       clientSecret: setupIntent.client_secret || '',
     };
   }
+}
+
+/**
+ * Stripe returns the customer either as an id or as an expanded object, and as
+ * null when the resource has no customer.
+ */
+function customerIdOf(
+  customer: string | { id: string } | null | undefined,
+): string | null {
+  if (!customer) return null;
+  return typeof customer === 'string' ? customer : customer.id;
 }

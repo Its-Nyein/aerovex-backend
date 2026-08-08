@@ -55,11 +55,16 @@ export class BillingController {
     description: 'Payment confirmed',
   })
   async confirmPayment(
+    @CurrentUser() user: JwtUser | undefined,
     @Body() payload: ConfirmPaymentDto,
   ): Promise<{ success: boolean; message: string; data: object }> {
+    if (!user) {
+      throw new UnauthorizedException('User not authenticated');
+    }
     const result = await this.billingService.confirmPayment(
       payload.paymentIntentId,
       payload.paymentMethodId,
+      user.id,
     );
     return {
       success: true,
@@ -97,9 +102,13 @@ export class BillingController {
     description: 'Payment retrieved successfully',
   })
   async getPaymentById(
+    @CurrentUser() user: JwtUser | undefined,
     @Param('id') id: string,
   ): Promise<{ success: boolean; message: string; data: object }> {
-    const payment = await this.billingService.getPaymentById(id);
+    if (!user) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+    const payment = await this.billingService.getPaymentById(id, user.id);
     return {
       success: true,
       message: 'Payment retrieved successfully',
@@ -140,9 +149,13 @@ export class BillingController {
     description: 'Subscription cancelled successfully',
   })
   async cancelSubscription(
+    @CurrentUser() user: JwtUser | undefined,
     @Param('id') id: string,
   ): Promise<{ success: boolean; message: string }> {
-    await this.billingService.cancelSubscription(id);
+    if (!user) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+    await this.billingService.cancelSubscription(id, user.id);
     return {
       success: true,
       message: 'Subscription cancelled successfully',

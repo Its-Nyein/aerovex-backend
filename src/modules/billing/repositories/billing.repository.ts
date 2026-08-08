@@ -38,6 +38,22 @@ export class BillingRepository {
     });
   }
 
+  /**
+   * A payment, but only if it belongs to the given user.
+   *
+   * Scoping in the query rather than fetching by id and comparing afterwards
+   * means a caller cannot accidentally leak another user's payment by
+   * forgetting the check.
+   */
+  async findPaymentByIdForUser(
+    id: string,
+    userId: string,
+  ): Promise<Payment | null> {
+    return this.prismaService.payment.findFirst({
+      where: { id, userId },
+    });
+  }
+
   async findPaymentByStripePaymentIntentId(
     stripePaymentIntentId: string,
   ): Promise<Payment | null> {
