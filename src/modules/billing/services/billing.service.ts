@@ -1,4 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { Payment, PaymentType } from '@prisma/client';
 import type { PaymentRecorderContract } from '../contracts/payment-recorder.contract';
 import { USER_ACCOUNT } from 'src/modules/user/contracts/user-account.contract';
@@ -7,6 +8,7 @@ import type {
   UserBillingProfile,
 } from 'src/modules/user/contracts/user-account.contract';
 import { BillingRepository } from '../repositories/billing.repository';
+import type { CreatePaymentData } from '../repositories/billing.repository';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
 import { CreatePaymentIntentDto } from '../dtos/create-payment-intent.dto';
 import type Stripe from 'stripe';
@@ -129,14 +131,32 @@ export class BillingService implements PaymentRecorderContract {
     paymentType: PaymentType,
     description?: string,
   ): Promise<Payment> {
-    return this.billingRepository.createPayment({
-      userId,
-      stripePaymentIntentId: paymentIntentId,
-      amount,
-      currency,
-      paymentType,
-      description,
-    });
+    // Stripe redelivers a webhook until it gets a 2xx, so this has to be
+    // idempotent. Without the check the retry violated the unique constraint
+    // on stripePaymentIntentId, returned 500, and Stripe kept retrying.
+    const existing =
+      await this.billingRepository.findPaymentByStripePaymentIntentId(
+        paymentIntentId,
+      );
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.createPaymentIgnoringDuplicates(
+      {
+        userId,
+        stripePaymentIntentId: paymentIntentId,
+        amount,
+        currency,
+        paymentType,
+        description,
+      },
+      () =>
+        this.billingRepository.findPaymentByStripePaymentIntentId(
+          paymentIntentId,
+        ),
+    );
   }
 
   async getPaymentHistory(userId: string): Promise<Payment[]> {
@@ -243,16 +263,64 @@ export class BillingService implements PaymentRecorderContract {
     amount: number,
     currency: string,
     description?: string,
+    invoiceId?: string,
   ): Promise<Payment> {
-    return this.billingRepository.createPayment({
-      userId,
-      stripeSubscriptionId: subscriptionId,
-      stripePriceId: priceId,
-      amount,
-      currency,
-      paymentType: 'RECURRING',
-      description,
-    });
+    // A subscription bills repeatedly, so the subscription id cannot identify
+    // one payment. The invoice id can, and it is what makes redelivery of
+    // invoice.payment_succeeded safe.
+    if (invoiceId) {
+      const existing =
+        await this.billingRepository.findPaymentByStripeInvoiceId(invoiceId);
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    return this.createPaymentIgnoringDuplicates(
+      {
+        userId,
+        stripeSubscriptionId: subscriptionId,
+        stripePriceId: priceId,
+        stripeInvoiceId: invoiceId,
+        amount,
+        currency,
+        paymentType: 'RECURRING',
+        description,
+      },
+      () =>
+        invoiceId
+          ? this.billingRepository.findPaymentByStripeInvoiceId(invoiceId)
+          : Promise.resolve(null),
+    );
+  }
+
+  /**
+   * Insert a payment, tolerating a concurrent insert of the same one.
+   *
+   * The pre-check above closes the common case, but two redeliveries handled
+   * at the same time can both pass it. Postgres still rejects the second with
+   * a unique violation, so that is treated as "already recorded" and the
+   * winning row is returned rather than surfacing a 500 to Stripe.
+   */
+  private async createPaymentIgnoringDuplicates(
+    data: CreatePaymentData,
+    reload: () => Promise<Payment | null>,
+  ): Promise<Payment> {
+    try {
+      return await this.billingRepository.createPayment(data);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const existing = await reload();
+        if (existing) {
+          return existing;
+        }
+      }
+      throw error;
+    }
   }
 
   async findUserByStripeCustomerId(

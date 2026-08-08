@@ -62,6 +62,7 @@ model Payment {
   id                    String      @id @default(uuid()) @db.Uuid()
   userId                String      @map("user_id") @db.Uuid()
   stripePaymentIntentId String?     @unique @map("stripe_payment_intent_id") @db.VarChar(255)
+  stripeInvoiceId       String?     @unique @map("stripe_invoice_id") @db.VarChar(255)
   stripeSubscriptionId  String?     @map("stripe_subscription_id") @db.VarChar(255)
   stripePriceId         String?     @map("stripe_price_id") @db.VarChar(255)
   amount                Int
