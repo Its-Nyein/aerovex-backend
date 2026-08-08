@@ -24,6 +24,7 @@ describe('BillingModule', () => {
 
   const userAccountMock = {
     findAuthCredentialsByEmail: jest.fn(),
+    findAccountStandingById: jest.fn(),
     findBillingProfileById: jest.fn(),
     findBillingProfileByStripeCustomerId: jest.fn(),
     setStripeCustomerId: jest.fn(),

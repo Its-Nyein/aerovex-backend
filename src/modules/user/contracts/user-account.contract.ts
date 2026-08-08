@@ -1,4 +1,7 @@
 import { RoleDto } from 'src/modules/role/contracts/role.contract';
+import type { AccountStatus } from '../enums/enum';
+
+export type { AccountStatus };
 
 /**
  * Public contract of the user module.
@@ -49,6 +52,22 @@ export interface UserAuthCredentials {
   name: string;
   passwordHash: string;
   role: RoleDto;
+  isActive: boolean;
+  accountStatus: AccountStatus;
+}
+
+/**
+ * Whether an account may still be used.
+ *
+ * accountStatus, isActive and deletedAt exist on the user table but were never
+ * consulted anywhere in auth, so a suspended, deactivated or soft-deleted user
+ * could sign in and keep refreshing indefinitely.
+ */
+export interface UserAccountStanding {
+  id: string;
+  isActive: boolean;
+  accountStatus: AccountStatus;
+  deletedAt: Date | null;
 }
 
 export interface UserAccountContract {
@@ -86,4 +105,12 @@ export interface UserAccountContract {
    * from a user that exists with no permissions.
    */
   findPermissionsByUserId(userId: string): Promise<UserPermission[] | null>;
+
+  /**
+   * Standing for a user id, or null when no such user exists.
+   *
+   * Deliberately unfiltered by deletedAt so the caller can tell a deleted
+   * account apart from one that never existed.
+   */
+  findAccountStandingById(userId: string): Promise<UserAccountStanding | null>;
 }

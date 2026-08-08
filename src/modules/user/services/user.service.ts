@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type {
   UserAccountContract,
+  UserAccountStanding,
   UserAuthCredentials,
   UserBillingProfile,
   UserPermission,
@@ -224,7 +225,15 @@ export class UserService implements UserAccountContract {
       name: user.name,
       passwordHash: user.password,
       role: user.role,
+      isActive: user.isActive,
+      accountStatus: user.accountStatus,
     };
+  }
+
+  async findAccountStandingById(
+    userId: string,
+  ): Promise<UserAccountStanding | null> {
+    return this.userRepository.findAccountStandingById(userId);
   }
 
   async findBillingProfileById(

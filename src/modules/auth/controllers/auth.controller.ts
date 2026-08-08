@@ -81,7 +81,12 @@ export class AuthController {
     description: 'Logout successful',
     type: LogoutResponseDto,
   })
-  logout(@Res({ passthrough: true }) res: Response): LogoutResponseDto {
-    return this.authService.logout(res);
+  async logout(
+    @Req() req: RequestWithCookies,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LogoutResponseDto> {
+    // The refresh token identifies the session to revoke, so logout works even
+    // once the access token has expired.
+    return await this.authService.logout(req.cookies.refresh_token, res);
   }
 }

@@ -230,6 +230,18 @@ export class UserRepository {
     });
   }
 
+  async findAccountStandingById(userId: string) {
+    return this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        isActive: true,
+        accountStatus: true,
+        deletedAt: true,
+      },
+    });
+  }
+
   async findSoftDeletedUsersByIds(
     ids: string[],
   ): Promise<UserWithRoleAndPermission[]> {

@@ -59,6 +59,8 @@ describe('UserModule', () => {
       name: 'John Doe',
       password: 'hashed',
       role: { id: 'role-1', name: 'admin', permissions: [] },
+      isActive: true,
+      accountStatus: 'ACTIVE',
     };
     prismaMock.user.findUnique.mockResolvedValue(user);
 
@@ -72,6 +74,8 @@ describe('UserModule', () => {
       name: 'John Doe',
       passwordHash: 'hashed',
       role: user.role,
+      isActive: true,
+      accountStatus: 'ACTIVE',
     });
     expect(prismaMock.user.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
