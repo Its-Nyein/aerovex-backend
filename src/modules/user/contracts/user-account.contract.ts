@@ -1,4 +1,4 @@
-import { UserDto } from '../dtos/user.dto';
+import { RoleDto } from 'src/modules/role/contracts/role.contract';
 
 /**
  * Public contract of the user module.
@@ -34,18 +34,34 @@ export interface UserPermission {
   subject: string;
 }
 
+/**
+ * What the auth module needs to verify a sign-in.
+ *
+ * This replaces a findUserByEmail(email, includePasswordField) method that was
+ * declared as returning a UserDto but returned the raw record with the password
+ * hash when the flag was set, so callers could not tell from the type what they
+ * were holding. Naming the hash makes the sensitive field explicit, and the
+ * shape carries only what login needs.
+ */
+export interface UserAuthCredentials {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  role: RoleDto;
+}
+
 export interface UserAccountContract {
   /**
-   * Look a user up by email.
+   * Credentials for an email, or null when no active user has it.
    *
-   * @param includePasswordField when true the raw user record is returned with
-   * its password hash, which credential verification needs. Callers must not
-   * expose that value outside their own module.
+   * Returning null rather than throwing is deliberate: it lets the caller
+   * answer an unknown email and a wrong password identically, which is what
+   * stops the endpoint from being used to enumerate accounts.
    */
-  findUserByEmail(
+  findAuthCredentialsByEmail(
     email: string,
-    includePasswordField?: boolean,
-  ): Promise<UserDto>;
+  ): Promise<UserAuthCredentials | null>;
 
   /**
    * Billing profile for a user id, or null when no such user exists.
