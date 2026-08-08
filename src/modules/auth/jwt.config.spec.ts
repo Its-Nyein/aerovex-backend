@@ -4,6 +4,33 @@ import { join } from 'path';
 import { jwtConfig } from './jwt.config';
 
 describe('jwtConfig', () => {
+  // ConfigService falls back to process.env for anything missing from the
+  // object it was constructed with, so these tests only prove anything if the
+  // real variables are absent. Another spec calling ConfigModule.forRoot()
+  // loads .env into process.env for the whole worker, which made this pass or
+  // fail depending on file order and on whether a .env existed.
+  const JWT_KEYS = [
+    'JWT_ACCESS_SECRET_KEY',
+    'JWT_REFRESH_SECRET_KEY',
+    'JWT_ACCESS_TOKEN_EXPIRES_IN',
+    'JWT_REFRESH_TOKEN_EXPIRES_IN',
+  ];
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of JWT_KEYS) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of JWT_KEYS) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
   const configFor = (values: Record<string, string>) =>
     new ConfigService(values);
 

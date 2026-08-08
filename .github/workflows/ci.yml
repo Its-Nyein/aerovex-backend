@@ -13,6 +13,20 @@ jobs:
   check:
     name: Lint, build and unit tests
     runs-on: ubuntu-latest
+
+    env:
+      # prisma.config.ts resolves the datasource with env('DATABASE_URL') and
+      # throws when it is unset, so even `prisma generate` needs one. Nothing in
+      # this job connects to a database; the value only has to parse. Locally
+      # this is masked because the config imports dotenv/config and .env exists.
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      # The unit tests compile real modules, so values read with getOrThrow at
+      # construction have to be present. Throwaway values, not secrets.
+      JWT_ACCESS_SECRET_KEY: ci-access-secret-not-used-anywhere-else
+      JWT_REFRESH_SECRET_KEY: ci-refresh-secret-not-used-anywhere-else
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+
     steps:
       - uses: actions/checkout@v4
 
