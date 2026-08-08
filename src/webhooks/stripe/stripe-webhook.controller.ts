@@ -4,9 +4,11 @@ import {
   Controller,
   Headers,
   Inject,
+  Logger,
   Post,
   Req,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { PaymentType } from '@prisma/client';
 import type { Request } from 'express';
@@ -29,8 +31,15 @@ interface InvoiceWithPayment {
 }
 
 @ApiTags('webhooks')
+// The global ThrottlerGuard allows 20 requests a minute. Stripe delivers events
+// in bursts and redelivers anything it cannot deliver, so throttling this route
+// turns a spike into 429s and silently delays payments. The signature check is
+// what protects this endpoint.
+@SkipThrottle()
 @Controller('webhooks/stripe')
 export class StripeWebhookController {
+  private readonly logger = new Logger(StripeWebhookController.name);
+
   constructor(
     private readonly stripeService: StripeService,
     @Inject(PAYMENT_RECORDER)
@@ -79,7 +88,7 @@ export class StripeWebhookController {
         break;
 
       default:
-        console.log(`⚠️ Unhandled event type: ${event.type}`);
+        this.logger.log(`⚠️ Unhandled event type: ${event.type}`);
     }
 
     return { received: true };
@@ -91,7 +100,7 @@ export class StripeWebhookController {
     const { metadata, id, amount, currency } = paymentIntent;
 
     if (!metadata.userId) {
-      console.log('No userId in payment intent metadata, skipping...');
+      this.logger.log('No userId in payment intent metadata, skipping...');
       return;
     }
 
@@ -110,14 +119,14 @@ export class StripeWebhookController {
       metadata.description,
     );
 
-    console.log(
+    this.logger.log(
       `Payment ${id} succeeded and saved for user ${metadata.userId}`,
     );
   }
 
   private handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): void {
     const { metadata, id } = paymentIntent;
-    console.log(
+    this.logger.log(
       `Payment ${id} failed for user ${metadata.userId ?? 'unknown'}`,
     );
   }
@@ -128,7 +137,7 @@ export class StripeWebhookController {
     const invoiceData = invoice as unknown as InvoiceWithPayment;
 
     if (!invoiceData.subscription || !invoiceData.customer) {
-      console.log('⚠️ No subscription or customer in invoice, skipping...');
+      this.logger.log('⚠️ No subscription or customer in invoice, skipping...');
       return;
     }
 
@@ -146,7 +155,7 @@ export class StripeWebhookController {
       await this.billingService.findUserByStripeCustomerId(customerId);
 
     if (!user) {
-      console.log(
+      this.logger.log(
         `❌ No user found for Stripe customer ${customerId}, skipping...`,
       );
       return;
@@ -164,6 +173,7 @@ export class StripeWebhookController {
       invoiceData.amount_paid,
       invoiceData.currency,
       `Subscription payment for ${subscriptionId}`,
+      invoice.id,
     );
   }
 }

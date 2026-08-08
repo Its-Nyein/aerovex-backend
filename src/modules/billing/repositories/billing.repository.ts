@@ -5,6 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export interface CreatePaymentData {
   userId: string;
   stripePaymentIntentId?: string;
+  stripeInvoiceId?: string;
   stripeSubscriptionId?: string;
   stripePriceId?: string;
   amount: number;
@@ -22,6 +23,7 @@ export class BillingRepository {
       data: {
         userId: data.userId,
         stripePaymentIntentId: data.stripePaymentIntentId,
+        stripeInvoiceId: data.stripeInvoiceId,
         stripeSubscriptionId: data.stripeSubscriptionId,
         stripePriceId: data.stripePriceId,
         amount: data.amount,
@@ -59,6 +61,14 @@ export class BillingRepository {
   ): Promise<Payment | null> {
     return this.prismaService.payment.findUnique({
       where: { stripePaymentIntentId },
+    });
+  }
+
+  async findPaymentByStripeInvoiceId(
+    stripeInvoiceId: string,
+  ): Promise<Payment | null> {
+    return this.prismaService.payment.findUnique({
+      where: { stripeInvoiceId },
     });
   }
 

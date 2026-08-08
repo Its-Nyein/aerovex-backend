@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StripeService } from 'src/external-service/stripe/stripe.service';
@@ -295,6 +296,137 @@ describe('BillingModule', () => {
       ).rejects.toThrow(NotFoundException);
       // Verification must not create a customer as a side effect.
       expect(stripeMock.createCustomer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('webhook idempotency', () => {
+    const stored = { id: 'pay-existing' };
+
+    it('returns the stored payment instead of inserting a duplicate', async () => {
+      // Stripe redelivers a webhook until it gets a 2xx.
+      prismaMock.payment.findUnique.mockResolvedValue(stored);
+
+      const recorder = moduleRef.get<PaymentRecorderContract>(PAYMENT_RECORDER);
+      await expect(
+        recorder.saveSuccessfulPayment(
+          'user-1',
+          'pi_1',
+          100,
+          'usd',
+          'ONE_TIME',
+        ),
+      ).resolves.toBe(stored);
+
+      expect(prismaMock.payment.create).not.toHaveBeenCalled();
+    });
+
+    it('inserts on first delivery', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue(null);
+      prismaMock.payment.create.mockResolvedValue({ id: 'pay-new' });
+
+      const recorder = moduleRef.get<PaymentRecorderContract>(PAYMENT_RECORDER);
+      await recorder.saveSuccessfulPayment(
+        'user-1',
+        'pi_1',
+        100,
+        'usd',
+        'ONE_TIME',
+      );
+
+      expect(prismaMock.payment.create).toHaveBeenCalled();
+    });
+
+    it('survives a concurrent duplicate insert', async () => {
+      // Two redeliveries handled at once both pass the pre-check; Postgres
+      // rejects the loser with P2002, which must not surface as a 500.
+      prismaMock.payment.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(stored);
+      prismaMock.payment.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('duplicate', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
+
+      const recorder = moduleRef.get<PaymentRecorderContract>(PAYMENT_RECORDER);
+      await expect(
+        recorder.saveSuccessfulPayment(
+          'user-1',
+          'pi_1',
+          100,
+          'usd',
+          'ONE_TIME',
+        ),
+      ).resolves.toBe(stored);
+    });
+
+    it('rethrows database errors that are not duplicates', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue(null);
+      prismaMock.payment.create.mockRejectedValue(new Error('connection lost'));
+
+      const recorder = moduleRef.get<PaymentRecorderContract>(PAYMENT_RECORDER);
+      await expect(
+        recorder.saveSuccessfulPayment(
+          'user-1',
+          'pi_1',
+          100,
+          'usd',
+          'ONE_TIME',
+        ),
+      ).rejects.toThrow('connection lost');
+    });
+
+    it('dedupes subscription payments by invoice id', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue(stored);
+
+      const recorder = moduleRef.get<PaymentRecorderContract>(PAYMENT_RECORDER);
+      await expect(
+        recorder.saveSubscriptionPayment(
+          'user-1',
+          'sub_1',
+          'price_1',
+          500,
+          'usd',
+          'desc',
+          'in_1',
+        ),
+      ).resolves.toBe(stored);
+
+      expect(prismaMock.payment.findUnique).toHaveBeenCalledWith({
+        where: { stripeInvoiceId: 'in_1' },
+      });
+      expect(prismaMock.payment.create).not.toHaveBeenCalled();
+    });
+
+    it('persists the invoice id so later redeliveries can be deduped', async () => {
+      prismaMock.payment.findUnique.mockResolvedValue(null);
+      prismaMock.payment.create.mockResolvedValue({ id: 'pay-new' });
+
+      const recorder = moduleRef.get<PaymentRecorderContract>(PAYMENT_RECORDER);
+      await recorder.saveSubscriptionPayment(
+        'user-1',
+        'sub_1',
+        'price_1',
+        500,
+        'usd',
+        'desc',
+        'in_1',
+      );
+
+      expect(prismaMock.payment.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          stripePaymentIntentId: undefined,
+          stripeInvoiceId: 'in_1',
+          stripeSubscriptionId: 'sub_1',
+          stripePriceId: 'price_1',
+          amount: 500,
+          currency: 'USD',
+          paymentType: 'RECURRING',
+          description: 'desc',
+        },
+      });
     });
   });
 });

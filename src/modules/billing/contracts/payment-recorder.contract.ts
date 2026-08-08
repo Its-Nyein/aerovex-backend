@@ -15,6 +15,7 @@ import type { UserBillingProfile } from 'src/modules/user/contracts/user-account
 export const PAYMENT_RECORDER = Symbol('PAYMENT_RECORDER');
 
 export interface PaymentRecorderContract {
+  /** Idempotent: redelivery of the same payment intent returns the stored row. */
   saveSuccessfulPayment(
     userId: string,
     paymentIntentId: string,
@@ -24,6 +25,10 @@ export interface PaymentRecorderContract {
     description?: string,
   ): Promise<Payment>;
 
+  /**
+   * @param invoiceId identifies the individual charge. Supplying it makes the
+   * call idempotent, which matters because Stripe redelivers webhooks.
+   */
   saveSubscriptionPayment(
     userId: string,
     subscriptionId: string,
@@ -31,6 +36,7 @@ export interface PaymentRecorderContract {
     amount: number,
     currency: string,
     description?: string,
+    invoiceId?: string,
   ): Promise<Payment>;
 
   /**
