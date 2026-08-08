@@ -1,13 +1,16 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { jwtConstants } from '../constant';
+import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { jwtConfig } from '../jwt.config';
 import { JwtUser } from '../decorators/current-user.decorator';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  // ConfigService is injected rather than reading a module-level constant, so
+  // the verification secret is resolved after .env has been loaded.
+  constructor(configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: Request): string | null => {
@@ -19,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
-      secretOrKey: jwtConstants.accessTokenSecret,
+      secretOrKey: jwtConfig.accessSecret(configService),
     });
   }
 

@@ -62,20 +62,10 @@ async function bootstrap() {
     }),
   );
 
-  // CSRF protection disabled for API endpoints
-  // Uncomment and configure if you need CSRF for web forms
-  /*
-  app.use(
-    csurf({
-      cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict' as const,
-        maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days in milliseconds
-      },
-    }),
-  );
-  */
+  // CSRF: the auth cookies are sameSite=strict, which is what protects the
+  // API from cross-site requests. The csurf package used to be referenced here
+  // in a commented-out block; it has been deprecated and unmaintained for
+  // years and is no longer a dependency.
 
   const documentFactory = new DocumentBuilder()
     .setTitle('Aerovex backend API')

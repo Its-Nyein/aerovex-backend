@@ -8,7 +8,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class UploadService {
@@ -43,7 +43,7 @@ export class UploadService {
       throw new BadRequestException('File is required');
     }
 
-    const key = `${uuidv4()}-${file.originalname}`;
+    const key = `${randomUUID()}-${file.originalname}`;
     const uploadParams = {
       Bucket: this.bucketName,
       Key: key,
