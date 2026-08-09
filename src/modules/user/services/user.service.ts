@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type {
   UserAccountContract,
+  UserAuthCredentials,
   UserBillingProfile,
   UserPermission,
 } from '../contracts/user-account.contract';
@@ -206,6 +207,24 @@ export class UserService implements UserAccountContract {
 
     await this.userRepository.bulkRestoreUsers(payload.ids);
     return { success: true, message: 'Users bulk restored successfully' };
+  }
+
+  async findAuthCredentialsByEmail(
+    email: string,
+  ): Promise<UserAuthCredentials | null> {
+    const user = await this.userRepository.findUserByEmail(email);
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      passwordHash: user.password,
+      role: user.role,
+    };
   }
 
   async findBillingProfileById(

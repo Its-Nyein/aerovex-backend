@@ -22,6 +22,17 @@ import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 // import { EmailPohService } from 'src/external-service/email-poh';
 
+/**
+ * A real bcrypt hash, never matched by any password.
+ *
+ * Status parity alone is not enough: verifying a password costs around 100ms,
+ * so returning early for an unknown email would make it measurably faster than
+ * a wrong password and still leak which addresses are registered. Comparing
+ * against this placeholder keeps both paths the same shape.
+ */
+const ABSENT_USER_PASSWORD_HASH =
+  '$2b$10$QWw9/uU7GFWanMGWtFS5VexsNcAQ0UpZZ.Hz5P/XUbY49JivRfMKS';
+
 interface AccountLockInfo {
   failed_attempts: number;
   locked_until: number | null;
@@ -108,14 +119,19 @@ export class AuthService {
     password: string,
     res: Response,
   ): Promise<LoginResponseDto> {
-    const user = await this.userService.findUserByEmail(email, true);
+    // Null rather than a thrown NotFoundException: the contract used to raise
+    // 404 "User with email x not found" for an unknown address while a wrong
+    // password gave 401, which let anyone enumerate registered accounts. Both
+    // cases now leave through the same 401 below.
+    const user = await this.userService.findAuthCredentialsByEmail(email);
     if (!user) {
+      await bcrypt.compare(password, ABSENT_USER_PASSWORD_HASH);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     await this.checkAccountLocked(user.id);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       await this.incrementFailedAttempts(user.id);
@@ -150,21 +166,6 @@ export class AuthService {
       refreshToken,
       cookieConstants.refreshTokenOptions,
     );
-
-    // Just for testing purposes
-    // try {
-    //   await this.emailPohService.welcomeEmail({
-    //     to: user.email,
-    //     name: user.name,
-    //     verificationUrl: `${process.env.AEROVEX_FRONTEND_URL}/verify-email`,
-    //   });
-    //   Logger.log(`Login notification email sent to ${user.email}`);
-    // } catch (error) {
-    //   Logger.error(
-    //     `Failed to send login notification email to ${user.email}:`,
-    //     error,
-    //   );
-    // }
 
     return {
       success: true,

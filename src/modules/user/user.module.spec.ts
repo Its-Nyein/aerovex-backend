@@ -52,21 +52,27 @@ describe('UserModule', () => {
     );
   });
 
-  it('serves findUserByEmail through the contract', async () => {
+  it('serves auth credentials through the contract', async () => {
     const user = {
       id: 'user-1',
       email: 'john.doe@example.com',
+      name: 'John Doe',
       password: 'hashed',
       role: { id: 'role-1', name: 'admin', permissions: [] },
     };
     prismaMock.user.findUnique.mockResolvedValue(user);
 
     const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
-    const result = await account.findUserByEmail(user.email, true);
+    const result = await account.findAuthCredentialsByEmail(user.email);
 
-    // includePasswordField keeps the hash, which is what credential
-    // verification in the auth module relies on.
-    expect(result).toHaveProperty('password', 'hashed');
+    // The hash is named, so a caller can see what it is holding.
+    expect(result).toEqual({
+      id: 'user-1',
+      email: 'john.doe@example.com',
+      name: 'John Doe',
+      passwordHash: 'hashed',
+      role: user.role,
+    });
     expect(prismaMock.user.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { email: user.email, deletedAt: { equals: null } },
@@ -74,20 +80,15 @@ describe('UserModule', () => {
     );
   });
 
-  it('strips the password when includePasswordField is not set', async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: 'user-1',
-      email: 'john.doe@example.com',
-      password: 'hashed',
-      role: { id: 'role-1', name: 'admin', permissions: [] },
-    });
+  it('returns null for an unknown email rather than throwing', async () => {
+    // Throwing produced a 404 that distinguished an unknown address from a
+    // wrong password, which allowed account enumeration.
+    prismaMock.user.findUnique.mockResolvedValue(null);
 
     const account = moduleRef.get<UserAccountContract>(USER_ACCOUNT);
-    const result = await account.findUserByEmail('john.doe@example.com');
-
-    // UserDto declares password with @Exclude(), so the key survives
-    // plainToInstance but the hash is dropped.
-    expect(result.password).toBeUndefined();
+    await expect(
+      account.findAuthCredentialsByEmail('nobody@example.com'),
+    ).resolves.toBeNull();
   });
   describe('billing profile access', () => {
     const record = {
