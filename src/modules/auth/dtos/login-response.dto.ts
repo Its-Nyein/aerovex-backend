@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { RoleDto } from 'src/modules/role/contracts/role.contract';
-import { UserDto } from 'src/modules/user/dtos/user.dto';
 
 export class LoginResponseDto {
   @ApiProperty({
@@ -27,7 +26,13 @@ export class LoginResponseDto {
     },
     description: 'User data',
   })
-  User: Pick<UserDto, 'id' | 'email' | 'name'> & {
+  // Declared here rather than picked from the user module's UserDto. This is
+  // auth's own response shape, and UserDto is internal to the user module; the
+  // fields are the ones login already returned.
+  User: {
+    id: string;
+    email: string;
+    name: string;
     role: RoleDto;
   };
 }

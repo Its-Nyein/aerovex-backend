@@ -1,25 +1,33 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './services/auth.service';
-import { AuthController } from './controllers/auth.controller';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { jwtConstants } from './constant';
-import { JwtStrategy } from './strategies/jwt.strategies';
-import { UserModule } from 'src/modules/user/user.module';
 import { ExternalServiceModule } from 'src/external-service/external-service.module';
+import { UserModule } from 'src/modules/user/user.module';
+import { AuthController } from './controllers/auth.controller';
+import { jwtConfig } from './jwt.config';
+import { AuthService } from './services/auth.service';
+import { JwtStrategy } from './strategies/jwt.strategies';
 
 @Module({
   imports: [
     UserModule,
     ExternalServiceModule,
-    JwtModule.register({
-      global: true,
-      secret: jwtConstants.accessTokenSecret,
-      signOptions: { expiresIn: jwtConstants.accessTokenExpiresIn },
-    }),
-    JwtModule.register({
-      global: true,
-      secret: jwtConstants.refreshTokenSecret,
-      signOptions: { expiresIn: jwtConstants.refreshTokenExpiresIn },
+    // registerAsync so the secret is resolved from ConfigService after .env is
+    // loaded. The previous register() calls read module-level constants that
+    // were evaluated before ConfigModule.forRoot() ran, so every token was
+    // signed with a hardcoded default.
+    //
+    // Registered once, not globally: there were two register({ global: true })
+    // calls and the second silently overrode the first. AuthService passes the
+    // secret explicitly on every sign, and nothing outside this module injects
+    // JwtService.
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: jwtConfig.accessSecret(config),
+        signOptions: { expiresIn: jwtConfig.accessExpiresIn(config) },
+      }),
     }),
   ],
   controllers: [AuthController],

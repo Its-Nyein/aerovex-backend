@@ -11,7 +11,8 @@ import type { UserAccountContract } from 'src/modules/user/contracts/user-accoun
 import { LoginResponseDto } from '../dtos/login-response.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { cookieConstants, jwtConstants } from '../constant';
+import { cookieConstants } from '../constant';
+import { jwtConfig } from '../jwt.config';
 import { Response } from 'express';
 import { RefreshResponseDto } from '../dtos/refresh-response.dto';
 import { JwtUser } from '../decorators/current-user.decorator';
@@ -129,13 +130,13 @@ export class AuthService {
     };
 
     const accessToken = await this.jwtService.signAsync(payload, {
-      secret: jwtConstants.accessTokenSecret,
-      expiresIn: jwtConstants.accessTokenExpiresIn,
+      secret: jwtConfig.accessSecret(this.configService),
+      expiresIn: jwtConfig.accessExpiresIn(this.configService),
     });
 
     const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: jwtConstants.refreshTokenSecret,
-      expiresIn: jwtConstants.refreshTokenExpiresIn,
+      secret: jwtConfig.refreshSecret(this.configService),
+      expiresIn: jwtConfig.refreshExpiresIn(this.configService),
     });
 
     res.cookie(
@@ -183,14 +184,14 @@ export class AuthService {
   ): Promise<RefreshResponseDto> {
     try {
       const payload = await this.jwtService.verifyAsync<JwtUser>(refreshToken, {
-        secret: jwtConstants.refreshTokenSecret,
+        secret: jwtConfig.refreshSecret(this.configService),
       });
 
       const newAccessToken = await this.jwtService.signAsync(
         { id: payload.id, email: payload.email },
         {
-          secret: jwtConstants.accessTokenSecret,
-          expiresIn: jwtConstants.accessTokenExpiresIn,
+          secret: jwtConfig.accessSecret(this.configService),
+          expiresIn: jwtConfig.accessExpiresIn(this.configService),
         },
       );
 

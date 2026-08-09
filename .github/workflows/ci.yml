@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, build and unit tests
+    runs-on: ubuntu-latest
+
+    env:
+      # prisma.config.ts resolves the datasource with env('DATABASE_URL') and
+      # throws when it is unset, so even `prisma generate` needs one. Nothing in
+      # this job connects to a database; the value only has to parse. Locally
+      # this is masked because the config imports dotenv/config and .env exists.
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      # The unit tests compile real modules, so values read with getOrThrow at
+      # construction have to be present. Throwaway values, not secrets.
+      JWT_ACCESS_SECRET_KEY: ci-access-secret-not-used-anywhere-else
+      JWT_REFRESH_SECRET_KEY: ci-refresh-secret-not-used-anywhere-else
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The client is generated code the build and the type-aware lint rules
+      # both need.
+      - run: pnpm prisma generate
+
+      # lint:check rather than lint: the lint script passes --fix, which would
+      # quietly repair problems instead of failing the build.
+      - run: pnpm lint:check
+
+      - run: pnpm build
+
+      - run: pnpm test
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aerovex_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # The database name must end in _test; test/setup-e2e.ts refuses to run
+      # against anything else, because these suites write.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aerovex_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      # The suites boot the real AppModule, so every value read with getOrThrow
+      # at startup has to be present. These are throwaway values, not secrets.
+      JWT_ACCESS_SECRET_KEY: ci-access-secret-not-used-anywhere-else
+      JWT_REFRESH_SECRET_KEY: ci-refresh-secret-not-used-anywhere-else
+      JWT_ACCESS_TOKEN_EXPIRES_IN: 5m
+      JWT_REFRESH_TOKEN_EXPIRES_IN: 15d
+      SUPER_ADMIN_EMAIL: superadmin@example.com
+      SUPER_ADMIN_PASSWORD: ci-super-admin-password
+      SUPER_ADMIN_NAME: SuperAdmin
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+      MAIL_HOST: localhost
+      MAIL_PORT: 1025
+      MAIL_USERNAME: ci
+      MAIL_PASSWORD: ci
+      MAIL_SENDER: ci@example.com
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm prisma generate
+
+      - run: pnpm prisma migrate deploy
+
+      - run: pnpm test:e2e
