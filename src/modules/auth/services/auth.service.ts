@@ -7,6 +7,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { USER_ACCOUNT } from 'src/modules/user/contracts/user-account.contract';
+import type { UserAccountStanding } from 'src/modules/user/contracts/user-account.contract';
 import type { UserAccountContract } from 'src/modules/user/contracts/user-account.contract';
 import { LoginResponseDto } from '../dtos/login-response.dto';
 import * as bcrypt from 'bcrypt';
@@ -32,6 +33,18 @@ import { ConfigService } from '@nestjs/config';
  */
 const ABSENT_USER_PASSWORD_HASH =
   '$2b$10$QWw9/uU7GFWanMGWtFS5VexsNcAQ0UpZZ.Hz5P/XUbY49JivRfMKS';
+
+/**
+ * Refresh tokens carry the version their session was issued at.
+ *
+ * A refresh token used to stay valid for its full fifteen days no matter what:
+ * logging out only cleared the cookie, so a copied token kept working, and
+ * nothing rechecked the account. Bumping the stored version invalidates every
+ * refresh token issued for that user.
+ */
+interface RefreshTokenPayload extends JwtUser {
+  tokenVersion?: number;
+}
 
 interface AccountLockInfo {
   failed_attempts: number;
@@ -138,6 +151,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Checked after the password so a wrong password on a suspended account
+    // still looks like a wrong password.
+    this.assertAccountUsable({
+      id: user.id,
+      isActive: user.isActive,
+      accountStatus: user.accountStatus,
+      deletedAt: null,
+    });
+
     await this.resetFailedAttempts(user.id);
 
     const payload = {
@@ -150,10 +172,14 @@ export class AuthService {
       expiresIn: jwtConfig.accessExpiresIn(this.configService),
     });
 
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: jwtConfig.refreshSecret(this.configService),
-      expiresIn: jwtConfig.refreshExpiresIn(this.configService),
-    });
+    // Stamped with the current version so a later logout can invalidate it.
+    const refreshToken = await this.jwtService.signAsync(
+      { ...payload, tokenVersion: await this.getTokenVersion(user.id) },
+      {
+        secret: jwtConfig.refreshSecret(this.configService),
+        expiresIn: jwtConfig.refreshExpiresIn(this.configService),
+      },
+    );
 
     res.cookie(
       cookieConstants.accessTokenName,
@@ -179,40 +205,121 @@ export class AuthService {
     };
   }
 
+  private getTokenVersionKey(userId: string): string {
+    return `auth:token_version:${userId}`;
+  }
+
+  private async getTokenVersion(userId: string): Promise<number> {
+    const stored = await this.redisService.get<number>(
+      this.getTokenVersionKey(userId),
+    );
+    return stored ?? 0;
+  }
+
+  /** Invalidates every refresh token already issued for this user. */
+  private async bumpTokenVersion(userId: string): Promise<void> {
+    const next = (await this.getTokenVersion(userId)) + 1;
+    await this.redisService.set(this.getTokenVersionKey(userId), next);
+  }
+
+  private assertAccountUsable(standing: UserAccountStanding | null): void {
+    // One message for every case: which of them applies is not something an
+    // unauthenticated caller should be able to learn.
+    if (
+      !standing ||
+      standing.deletedAt !== null ||
+      !standing.isActive ||
+      standing.accountStatus !== 'ACTIVE'
+    ) {
+      throw new UnauthorizedException('Account is not active');
+    }
+  }
+
   async refresh(
     refreshToken: string,
     res: Response,
   ): Promise<RefreshResponseDto> {
+    let payload: RefreshTokenPayload;
+
     try {
-      const payload = await this.jwtService.verifyAsync<JwtUser>(refreshToken, {
-        secret: jwtConfig.refreshSecret(this.configService),
-      });
-
-      const newAccessToken = await this.jwtService.signAsync(
-        { id: payload.id, email: payload.email },
-        {
-          secret: jwtConfig.accessSecret(this.configService),
-          expiresIn: jwtConfig.accessExpiresIn(this.configService),
-        },
+      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
+        refreshToken,
+        { secret: jwtConfig.refreshSecret(this.configService) },
       );
-
-      res.cookie(
-        cookieConstants.accessTokenName,
-        newAccessToken,
-        cookieConstants.accessTokenOptions,
-      );
-
-      return {
-        success: true,
-        message: 'Token refreshed successfully',
-      };
-    } catch (error: any) {
+    } catch (error) {
       Logger.error('Refresh token validation error:', error);
       throw new UnauthorizedException('Invalid refresh token');
     }
+
+    // Revocation. A token issued before the last logout, or before any other
+    // event that bumped the version, no longer matches.
+    const currentVersion = await this.getTokenVersion(payload.id);
+    if ((payload.tokenVersion ?? 0) !== currentVersion) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // The account may have been suspended, deactivated or deleted since the
+    // token was issued. Nothing checked this before.
+    this.assertAccountUsable(
+      await this.userService.findAccountStandingById(payload.id),
+    );
+
+    const newAccessToken = await this.jwtService.signAsync(
+      { id: payload.id, email: payload.email },
+      {
+        secret: jwtConfig.accessSecret(this.configService),
+        expiresIn: jwtConfig.accessExpiresIn(this.configService),
+      },
+    );
+
+    // Rotate. Reusing the same refresh token for fifteen days gives an
+    // attacker who captures it the same lifetime as the legitimate session.
+    const newRefreshToken = await this.jwtService.signAsync(
+      { id: payload.id, email: payload.email, tokenVersion: currentVersion },
+      {
+        secret: jwtConfig.refreshSecret(this.configService),
+        expiresIn: jwtConfig.refreshExpiresIn(this.configService),
+      },
+    );
+
+    res.cookie(
+      cookieConstants.accessTokenName,
+      newAccessToken,
+      cookieConstants.accessTokenOptions,
+    );
+    res.cookie(
+      cookieConstants.refreshTokenName,
+      newRefreshToken,
+      cookieConstants.refreshTokenOptions,
+    );
+
+    return {
+      success: true,
+      message: 'Token refreshed successfully',
+    };
   }
 
-  logout(res: Response): LogoutResponseDto {
+  async logout(
+    refreshToken: string | undefined,
+    res: Response,
+  ): Promise<LogoutResponseDto> {
+    // Clearing the cookie only stopped this browser from sending the token.
+    // Bumping the version makes any copy of it useless. The refresh token
+    // identifies the user, so logging out works even with an expired access
+    // token.
+    if (refreshToken) {
+      try {
+        const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
+          refreshToken,
+          { secret: jwtConfig.refreshSecret(this.configService) },
+        );
+        await this.bumpTokenVersion(payload.id);
+      } catch {
+        // An unreadable token means there is no session to revoke; clearing
+        // the cookies below is still the right response.
+      }
+    }
+
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
 
